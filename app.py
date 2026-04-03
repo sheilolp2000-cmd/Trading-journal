@@ -86,13 +86,22 @@ def _sb_logout(token):
     except Exception:
         pass
 
+def _valid_uuid(val):
+    """Reject non-UUID values before they reach DB URLs."""
+    import re
+    return bool(re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', str(val or ''), re.I))
+
 def _sb_get_trades(user_id, token):
+    if not _valid_uuid(user_id):
+        return []
     data, code = _http("GET",
         f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}&order=sort_order.asc",
         _sb_headers(token, {"Accept": "application/json"}))
     return data if isinstance(data, list) else []
 
 def _sb_delete_trades(user_id, token):
+    if not _valid_uuid(user_id):
+        return
     _http("DELETE", f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}",
           _sb_headers(token))
 
@@ -1286,14 +1295,19 @@ def _show_auth_page():
             _email2 = st.text_input("Email", key="signup_email", placeholder="your@email.com")
             _pw2 = st.text_input("Password (min 6 chars)", type="password", key="signup_pw")
             if st.button("Create Account", type="primary", use_container_width=True, key="signup_btn"):
-                _data2, _code2 = _sb_signup(_email2, _pw2)
-                if _code2 in (200, 201) and "id" in _data2.get("user", {}):
-                    st.success("Account created! You can now log in.")
-                elif _code2 in (200, 201) and "id" in _data2:
-                    st.success("Account created! You can now log in.")
+                if len(_pw2) < 6:
+                    st.error("Password must be at least 6 characters.")
+                elif "@" not in _email2 or len(_email2) > 254:
+                    st.error("Please enter a valid email address.")
                 else:
-                    _msg2 = _data2.get("error_description") or _data2.get("msg") or str(_data2)
-                    st.error(f"Sign up failed: {_msg2}")
+                    _data2, _code2 = _sb_signup(_email2, _pw2)
+                    if _code2 in (200, 201) and "id" in _data2.get("user", {}):
+                        st.success("Account created! You can now log in.")
+                    elif _code2 in (200, 201) and "id" in _data2:
+                        st.success("Account created! You can now log in.")
+                    else:
+                        _msg2 = _data2.get("error_description") or _data2.get("msg") or str(_data2)
+                        st.error(f"Sign up failed: {_msg2}")
 
 # --- Auth gate ---
 if 'sb_access_token' not in st.session_state:
@@ -1346,23 +1360,24 @@ def save_journal(trades):
             _rows = []
             for _i, _t in enumerate(trades):
                 _tid = str(_t.get('id') or uuid.uuid4())
+                def _trunc(val, n): return str(val or '')[:n]
                 _rows.append({
                     'id': _tid,
                     'user_id': _uid,
-                    'name': str(_t.get('name', '')),
-                    'open_date': str(_t.get('open', '')),
-                    'close_date': str(_t.get('close', '')),
-                    'pair': str(_t.get('pair', '')),
-                    'direction': str(_t.get('direction', 'Long')),
-                    'session': str(_t.get('session', '')),
-                    'strategy': str(_t.get('strategy', '')),
-                    'status': str(_t.get('status', 'Open')),
+                    'name': _trunc(_t.get('name'), 200),
+                    'open_date': _trunc(_t.get('open'), 30),
+                    'close_date': _trunc(_t.get('close'), 30),
+                    'pair': _trunc(_t.get('pair'), 50),
+                    'direction': _trunc(_t.get('direction', 'Long'), 20),
+                    'session': _trunc(_t.get('session'), 50),
+                    'strategy': _trunc(_t.get('strategy'), 200),
+                    'status': _trunc(_t.get('status', 'Open'), 20),
                     'net_pnl': float(_t.get('net_pnl', 0) or 0),
                     'fees': float(_t.get('fees', 0) or 0),
                     'gross_pnl': float(_t.get('gross_pnl', 0) or 0),
-                    'profit_loss': str(_t.get('profit_loss', '')),
-                    'confluences': json.dumps(_t.get('confluences', []) or []),
-                    'notes': str(_t.get('additions', '')),
+                    'profit_loss': _trunc(_t.get('profit_loss'), 20),
+                    'confluences': json.dumps([_trunc(c, 100) for c in (_t.get('confluences') or [])[:20]]),
+                    'notes': _trunc(_t.get('additions'), 2000),
                     'sort_order': _i,
                 })
             _sb_insert_trades(_rows, _token)
@@ -1417,7 +1432,7 @@ with st.sidebar:
     st.markdown(f"""
     <div style="padding: 12px 16px; background: {COLORS['bg_card']}; border-radius: 12px; border: 1px solid {COLORS['border']}; margin-top: 20px;">
         <div style="font-size: 0.7rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Logged in as</div>
-        <div style="font-size: 0.8rem; color: {COLORS['accent_cyan']}; word-break: break-all;">{st.session_state.get('sb_user_email', '')}</div>
+        <div style="font-size: 0.8rem; color: {COLORS['accent_cyan']}; word-break: break-all;">{_html.escape(st.session_state.get('sb_user_email', ''))}</div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
@@ -1429,11 +1444,15 @@ with st.sidebar:
 
 
 # --- Load broker data ---
+_MAX_UPLOAD_MB = 20
 df = None
 if use_default and default_file.exists():
     df = pd.read_excel(default_file)
 elif uploaded_file:
-    if uploaded_file.name.endswith('.csv'):
+    if uploaded_file.size > _MAX_UPLOAD_MB * 1024 * 1024:
+        st.error(f"File too large. Maximum allowed size is {_MAX_UPLOAD_MB} MB.")
+        uploaded_file = None
+    elif uploaded_file.name.endswith('.csv'):
         df = pd.read_csv(uploaded_file)
     else:
         df = pd.read_excel(uploaded_file)
