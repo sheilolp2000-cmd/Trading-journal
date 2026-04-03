@@ -13,8 +13,8 @@ import uuid
 import os
 import json
 import html as _html
+import requests
 from pathlib import Path
-from supabase import create_client
 
 # --- Config ---
 st.set_page_config(
@@ -36,13 +36,48 @@ def _get_secret(key, fallback=""):
     except Exception:
         return os.getenv(key, fallback)
 
-# --- Supabase client ---
-_SB_URL = _get_secret("SUPABASE_URL")
+# --- Supabase REST helpers (no SDK, avoids httpx/h2 issues on Python 3.14) ---
+_SB_URL = _get_secret("SUPABASE_URL").rstrip("/")
 _SB_KEY = _get_secret("SUPABASE_KEY")
 if not _SB_URL or not _SB_KEY:
     st.error("Supabase credentials not configured. Add SUPABASE_URL and SUPABASE_KEY to Streamlit Secrets.")
     st.stop()
-_sb = create_client(_SB_URL, _SB_KEY)
+
+def _sb_headers(token=None):
+    h = {"apikey": _SB_KEY, "Content-Type": "application/json"}
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    return h
+
+def _sb_signup(email, password):
+    r = requests.post(f"{_SB_URL}/auth/v1/signup", headers=_sb_headers(),
+                      json={"email": email, "password": password}, timeout=15)
+    return r.json(), r.status_code
+
+def _sb_login(email, password):
+    r = requests.post(f"{_SB_URL}/auth/v1/token?grant_type=password", headers=_sb_headers(),
+                      json={"email": email, "password": password}, timeout=15)
+    return r.json(), r.status_code
+
+def _sb_logout(token):
+    requests.post(f"{_SB_URL}/auth/v1/logout", headers=_sb_headers(token), timeout=10)
+
+def _sb_get_trades(user_id, token):
+    r = requests.get(
+        f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}&order=sort_order.asc",
+        headers={**_sb_headers(token), "Accept": "application/json"}, timeout=15)
+    return r.json() if r.ok else []
+
+def _sb_delete_trades(user_id, token):
+    requests.delete(
+        f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}",
+        headers=_sb_headers(token), timeout=15)
+
+def _sb_insert_trades(rows, token):
+    requests.post(
+        f"{_SB_URL}/rest/v1/journal_trades",
+        headers={**_sb_headers(token), "Prefer": "return=minimal"},
+        json=rows, timeout=30)
 
 
 # --- Color Palette ---
@@ -1201,15 +1236,7 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 # UI
 # =====================================================
 
-# --- Auth: restore session on rerun ---
-if 'sb_access_token' in st.session_state:
-    try:
-        _sb.auth.set_session(st.session_state.sb_access_token, st.session_state.sb_refresh_token)
-    except Exception:
-        st.session_state.pop('sb_access_token', None)
-        st.session_state.pop('sb_refresh_token', None)
-        st.session_state.pop('sb_user_id', None)
-        st.session_state.pop('sb_user_email', None)
+# --- Auth: session is stored in st.session_state (token-based, no SDK needed) ---
 
 # --- Login page ---
 def _show_auth_page():
@@ -1224,24 +1251,28 @@ def _show_auth_page():
             _email = st.text_input("Email", key="login_email", placeholder="your@email.com")
             _pw = st.text_input("Password", type="password", key="login_pw")
             if st.button("Login", type="primary", use_container_width=True, key="login_btn"):
-                try:
-                    _res = _sb.auth.sign_in_with_password({"email": _email, "password": _pw})
-                    st.session_state.sb_access_token = _res.session.access_token
-                    st.session_state.sb_refresh_token = _res.session.refresh_token
-                    st.session_state.sb_user_id = _res.user.id
-                    st.session_state.sb_user_email = _res.user.email
+                _data, _code = _sb_login(_email, _pw)
+                if _code == 200 and "access_token" in _data:
+                    st.session_state.sb_access_token = _data["access_token"]
+                    st.session_state.sb_refresh_token = _data.get("refresh_token", "")
+                    st.session_state.sb_user_id = _data["user"]["id"]
+                    st.session_state.sb_user_email = _data["user"]["email"]
                     st.rerun()
-                except Exception as _e:
-                    st.error(f"Login failed: {_e}")
+                else:
+                    _msg = _data.get("error_description") or _data.get("msg") or str(_data)
+                    st.error(f"Login failed: {_msg}")
         with _st:
             _email2 = st.text_input("Email", key="signup_email", placeholder="your@email.com")
             _pw2 = st.text_input("Password (min 6 chars)", type="password", key="signup_pw")
             if st.button("Create Account", type="primary", use_container_width=True, key="signup_btn"):
-                try:
-                    _sb.auth.sign_up({"email": _email2, "password": _pw2})
-                    st.success("Account created! Check your email to confirm, then log in.")
-                except Exception as _e:
-                    st.error(f"Sign up failed: {_e}")
+                _data2, _code2 = _sb_signup(_email2, _pw2)
+                if _code2 in (200, 201) and "id" in _data2.get("user", {}):
+                    st.success("Account created! You can now log in.")
+                elif _code2 in (200, 201) and "id" in _data2:
+                    st.success("Account created! You can now log in.")
+                else:
+                    _msg2 = _data2.get("error_description") or _data2.get("msg") or str(_data2)
+                    st.error(f"Sign up failed: {_msg2}")
 
 # --- Auth gate ---
 if 'sb_access_token' not in st.session_state:
@@ -1255,11 +1286,14 @@ st.markdown('<p class="hero-subtitle">Upload your trades — the AI tells you wh
 # --- Journal helpers (DB-backed) ---
 def load_journal():
     try:
-        _res = _sb.table('journal_trades').select('*').eq(
-            'user_id', st.session_state.sb_user_id
-        ).order('sort_order').execute()
+        _token = st.session_state.sb_access_token
+        _uid = st.session_state.sb_user_id
+        _rows = _sb_get_trades(_uid, _token)
+        if isinstance(_rows, dict) and "message" in _rows:
+            st.error(f"Could not load trades: {_rows['message']}")
+            return []
         trades = []
-        for _r in _res.data:
+        for _r in _rows:
             trades.append({
                 'id': _r['id'],
                 'name': _r.get('name', ''),
@@ -1284,8 +1318,9 @@ def load_journal():
 
 def save_journal(trades):
     try:
+        _token = st.session_state.sb_access_token
         _uid = st.session_state.sb_user_id
-        _sb.table('journal_trades').delete().eq('user_id', _uid).execute()
+        _sb_delete_trades(_uid, _token)
         if trades:
             _rows = []
             for _i, _t in enumerate(trades):
@@ -1309,7 +1344,7 @@ def save_journal(trades):
                     'notes': str(_t.get('additions', '')),
                     'sort_order': _i,
                 })
-            _sb.table('journal_trades').insert(_rows).execute()
+            _sb_insert_trades(_rows, _token)
     except Exception as _e:
         st.error(f"Could not save trades: {_e}")
 
@@ -1366,10 +1401,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
     if st.button("Logout", use_container_width=True, key="logout_btn"):
-        try:
-            _sb.auth.sign_out()
-        except Exception:
-            pass
+        _sb_logout(st.session_state.get('sb_access_token', ''))
         for _k in ['sb_access_token', 'sb_refresh_token', 'sb_user_id', 'sb_user_email', 'journal_trades']:
             st.session_state.pop(_k, None)
         st.rerun()
