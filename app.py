@@ -12,6 +12,7 @@ import calendar
 import uuid
 import os
 import json
+import html as _html
 from pathlib import Path
 from supabase import create_client
 
@@ -36,8 +37,11 @@ def _get_secret(key, fallback=""):
         return os.getenv(key, fallback)
 
 # --- Supabase client ---
-_SB_URL = _get_secret("SUPABASE_URL", "https://lewclybkrzxvnmeatgk.supabase.co")
-_SB_KEY = _get_secret("SUPABASE_KEY", "sb_publishable_zIorlWn5P-fg-zPSb3xZ2A_Kbc0Y-s6")
+_SB_URL = _get_secret("SUPABASE_URL")
+_SB_KEY = _get_secret("SUPABASE_KEY")
+if not _SB_URL or not _SB_KEY:
+    st.error("Supabase credentials not configured. Add SUPABASE_URL and SUPABASE_KEY to Streamlit Secrets.")
+    st.stop()
 _sb = create_client(_SB_URL, _SB_KEY)
 
 
@@ -1663,7 +1667,7 @@ if page == "📓 Journal":
                 st.markdown(f"""
                 <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
                     <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px 16px 4px 16px; padding: 12px 18px; max-width: 80%; color: {COLORS['text_bright']};">
-                        {msg['content']}
+                        {_html.escape(str(msg['content']))}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1793,7 +1797,7 @@ elif page == "📊 Import Data":
                 st.markdown(f"""
                 <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
                     <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px 16px 4px 16px; padding: 12px 18px; max-width: 80%; color: {COLORS['text_bright']};">
-                        {msg['content']}
+                        {_html.escape(str(msg['content']))}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
