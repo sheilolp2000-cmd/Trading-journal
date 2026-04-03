@@ -43,8 +43,6 @@ _SB_KEY = _get_secret("SUPABASE_KEY").strip()
 if not _SB_URL or not _SB_KEY:
     st.error("Supabase credentials not configured. Add SUPABASE_URL and SUPABASE_KEY to Streamlit Secrets.")
     st.stop()
-# Debug: show URL being used (remove after testing)
-st.sidebar.caption(f"DB: `{_SB_URL}`")
 
 def _sb_headers(token=None, extra=None):
     h = {"apikey": _SB_KEY, "Content-Type": "application/json"}
