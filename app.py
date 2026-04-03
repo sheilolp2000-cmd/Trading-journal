@@ -1201,10 +1201,6 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 # UI
 # =====================================================
 
-# --- Header ---
-st.markdown('<p class="hero-title">AI Trading Coach</p>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Upload your trades — the AI tells you what you\'re doing wrong.</p>', unsafe_allow_html=True)
-
 # --- Auth: restore session on rerun ---
 if 'sb_access_token' in st.session_state:
     try:
@@ -1219,6 +1215,7 @@ if 'sb_access_token' in st.session_state:
 def _show_auth_page():
     st.markdown('<p class="hero-title">AI Trading Coach</p>', unsafe_allow_html=True)
     st.markdown('<p class="hero-subtitle">Sign in to access your personal trading journal.</p>', unsafe_allow_html=True)
+
     st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
     _, _ac, _ = st.columns([1, 1, 1])
     with _ac:
@@ -1250,6 +1247,10 @@ def _show_auth_page():
 if 'sb_access_token' not in st.session_state:
     _show_auth_page()
     st.stop()
+
+# --- Header (only shown when logged in) ---
+st.markdown('<p class="hero-title">AI Trading Coach</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Upload your trades — the AI tells you what you\'re doing wrong.</p>', unsafe_allow_html=True)
 
 # --- Journal helpers (DB-backed) ---
 def load_journal():
