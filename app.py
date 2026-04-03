@@ -50,34 +50,56 @@ def _sb_headers(token=None):
     return h
 
 def _sb_signup(email, password):
-    r = requests.post(f"{_SB_URL}/auth/v1/signup", headers=_sb_headers(),
-                      json={"email": email, "password": password}, timeout=15)
-    return r.json(), r.status_code
+    try:
+        r = requests.post(f"{_SB_URL}/auth/v1/signup", headers=_sb_headers(),
+                          json={"email": email, "password": password}, timeout=15)
+        return r.json(), r.status_code
+    except requests.exceptions.ConnectionError:
+        return {"error_description": "Cannot reach Supabase. The project may be paused — go to supabase.com and restore it."}, 503
+    except Exception as _e:
+        return {"error_description": str(_e)}, 503
 
 def _sb_login(email, password):
-    r = requests.post(f"{_SB_URL}/auth/v1/token?grant_type=password", headers=_sb_headers(),
-                      json={"email": email, "password": password}, timeout=15)
-    return r.json(), r.status_code
+    try:
+        r = requests.post(f"{_SB_URL}/auth/v1/token?grant_type=password", headers=_sb_headers(),
+                          json={"email": email, "password": password}, timeout=15)
+        return r.json(), r.status_code
+    except requests.exceptions.ConnectionError:
+        return {"error_description": "Cannot reach Supabase. The project may be paused — go to supabase.com and restore it."}, 503
+    except Exception as _e:
+        return {"error_description": str(_e)}, 503
 
 def _sb_logout(token):
-    requests.post(f"{_SB_URL}/auth/v1/logout", headers=_sb_headers(token), timeout=10)
+    try:
+        requests.post(f"{_SB_URL}/auth/v1/logout", headers=_sb_headers(token), timeout=10)
+    except Exception:
+        pass
 
 def _sb_get_trades(user_id, token):
-    r = requests.get(
-        f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}&order=sort_order.asc",
-        headers={**_sb_headers(token), "Accept": "application/json"}, timeout=15)
-    return r.json() if r.ok else []
+    try:
+        r = requests.get(
+            f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}&order=sort_order.asc",
+            headers={**_sb_headers(token), "Accept": "application/json"}, timeout=15)
+        return r.json() if r.ok else []
+    except Exception:
+        return []
 
 def _sb_delete_trades(user_id, token):
-    requests.delete(
-        f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}",
-        headers=_sb_headers(token), timeout=15)
+    try:
+        requests.delete(
+            f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}",
+            headers=_sb_headers(token), timeout=15)
+    except Exception:
+        pass
 
 def _sb_insert_trades(rows, token):
-    requests.post(
-        f"{_SB_URL}/rest/v1/journal_trades",
-        headers={**_sb_headers(token), "Prefer": "return=minimal"},
-        json=rows, timeout=30)
+    try:
+        requests.post(
+            f"{_SB_URL}/rest/v1/journal_trades",
+            headers={**_sb_headers(token), "Prefer": "return=minimal"},
+            json=rows, timeout=30)
+    except Exception:
+        pass
 
 
 # --- Color Palette ---
