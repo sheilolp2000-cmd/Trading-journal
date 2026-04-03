@@ -13,7 +13,8 @@ import uuid
 import os
 import json
 import html as _html
-import requests
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 # --- Config ---
@@ -43,63 +44,61 @@ if not _SB_URL or not _SB_KEY:
     st.error("Supabase credentials not configured. Add SUPABASE_URL and SUPABASE_KEY to Streamlit Secrets.")
     st.stop()
 
-def _sb_headers(token=None):
+def _sb_headers(token=None, extra=None):
     h = {"apikey": _SB_KEY, "Content-Type": "application/json"}
     if token:
         h["Authorization"] = f"Bearer {token}"
+    if extra:
+        h.update(extra)
     return h
 
-def _sb_signup(email, password):
+def _http(method, url, headers=None, body=None, timeout=15):
+    """Pure stdlib HTTP — works on every Python version, no dependencies."""
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
     try:
-        r = requests.post(f"{_SB_URL}/auth/v1/signup", headers=_sb_headers(),
-                          json={"email": email, "password": password}, timeout=15)
-        return r.json(), r.status_code
-    except requests.exceptions.ConnectionError:
-        return {"error_description": "Cannot reach Supabase. The project may be paused — go to supabase.com and restore it."}, 503
-    except Exception as _e:
-        return {"error_description": str(_e)}, 503
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            content = resp.read()
+            try:
+                return json.loads(content), resp.status
+            except Exception:
+                return {}, resp.status
+    except urllib.error.HTTPError as e:
+        content = e.read()
+        try:
+            return json.loads(content), e.code
+        except Exception:
+            return {"error_description": str(e)}, e.code
+    except Exception as e:
+        return {"error_description": f"Cannot reach Supabase: {e}"}, 503
+
+def _sb_signup(email, password):
+    return _http("POST", f"{_SB_URL}/auth/v1/signup", _sb_headers(),
+                 {"email": email, "password": password})
 
 def _sb_login(email, password):
-    try:
-        r = requests.post(f"{_SB_URL}/auth/v1/token?grant_type=password", headers=_sb_headers(),
-                          json={"email": email, "password": password}, timeout=15)
-        return r.json(), r.status_code
-    except requests.exceptions.ConnectionError:
-        return {"error_description": "Cannot reach Supabase. The project may be paused — go to supabase.com and restore it."}, 503
-    except Exception as _e:
-        return {"error_description": str(_e)}, 503
+    return _http("POST", f"{_SB_URL}/auth/v1/token?grant_type=password", _sb_headers(),
+                 {"email": email, "password": password})
 
 def _sb_logout(token):
     try:
-        requests.post(f"{_SB_URL}/auth/v1/logout", headers=_sb_headers(token), timeout=10)
+        _http("POST", f"{_SB_URL}/auth/v1/logout", _sb_headers(token), timeout=10)
     except Exception:
         pass
 
 def _sb_get_trades(user_id, token):
-    try:
-        r = requests.get(
-            f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}&order=sort_order.asc",
-            headers={**_sb_headers(token), "Accept": "application/json"}, timeout=15)
-        return r.json() if r.ok else []
-    except Exception:
-        return []
+    data, code = _http("GET",
+        f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}&order=sort_order.asc",
+        _sb_headers(token, {"Accept": "application/json"}))
+    return data if isinstance(data, list) else []
 
 def _sb_delete_trades(user_id, token):
-    try:
-        requests.delete(
-            f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}",
-            headers=_sb_headers(token), timeout=15)
-    except Exception:
-        pass
+    _http("DELETE", f"{_SB_URL}/rest/v1/journal_trades?user_id=eq.{user_id}",
+          _sb_headers(token))
 
 def _sb_insert_trades(rows, token):
-    try:
-        requests.post(
-            f"{_SB_URL}/rest/v1/journal_trades",
-            headers={**_sb_headers(token), "Prefer": "return=minimal"},
-            json=rows, timeout=30)
-    except Exception:
-        pass
+    _http("POST", f"{_SB_URL}/rest/v1/journal_trades",
+          _sb_headers(token, {"Prefer": "return=minimal"}), rows)
 
 
 # --- Color Palette ---
