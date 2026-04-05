@@ -15,7 +15,13 @@ import json
 import html as _html
 import urllib.request
 import urllib.error
+import urllib.parse
 from pathlib import Path
+try:
+    import extra_streamlit_components as stx
+    _COOKIES_AVAILABLE = True
+except ImportError:
+    _COOKIES_AVAILABLE = False
 
 # --- Config ---
 st.set_page_config(
@@ -36,6 +42,51 @@ def _get_secret(key, fallback=""):
         return st.secrets[key]
     except Exception:
         return os.getenv(key, fallback)
+
+# --- Cookie Manager (session persistence) ---
+if _COOKIES_AVAILABLE:
+    _cookie_mgr = stx.CookieManager(key="tcj_cookies")
+else:
+    _cookie_mgr = None
+
+def _save_session_cookies(access_token, refresh_token, user_id, user_email):
+    if _cookie_mgr is None:
+        return
+    try:
+        _cookie_mgr.set("tcj_access_token", access_token, key="set_at")
+        _cookie_mgr.set("tcj_refresh_token", refresh_token, key="set_rt")
+        _cookie_mgr.set("tcj_user_id", user_id, key="set_uid")
+        _cookie_mgr.set("tcj_user_email", user_email, key="set_em")
+    except Exception:
+        pass
+
+def _clear_session_cookies():
+    if _cookie_mgr is None:
+        return
+    for name, key in [("tcj_access_token","del_at"),("tcj_refresh_token","del_rt"),("tcj_user_id","del_uid"),("tcj_user_email","del_em")]:
+        try:
+            _cookie_mgr.delete(name, key=key)
+        except Exception:
+            pass
+
+def _restore_session_from_cookies():
+    """Try to restore session from cookies. Returns True if successful."""
+    if _cookie_mgr is None or 'sb_access_token' in st.session_state:
+        return 'sb_access_token' in st.session_state
+    try:
+        cookies = _cookie_mgr.get_all()
+        token = cookies.get("tcj_access_token", "")
+        uid = cookies.get("tcj_user_id", "")
+        email = cookies.get("tcj_user_email", "")
+        if token and uid:
+            st.session_state.sb_access_token = token
+            st.session_state.sb_refresh_token = cookies.get("tcj_refresh_token", "")
+            st.session_state.sb_user_id = uid
+            st.session_state.sb_user_email = email
+            return True
+    except Exception:
+        pass
+    return False
 
 # --- Supabase REST helpers (no SDK, avoids httpx/h2 issues on Python 3.14) ---
 _SB_URL = _get_secret("SUPABASE_URL").strip().rstrip("/")
@@ -86,6 +137,36 @@ def _sb_logout(token):
     except Exception:
         pass
 
+def _sb_refresh_token(refresh_token):
+    """Get a new access token using the refresh token."""
+    data, code = _http("POST", f"{_SB_URL}/auth/v1/token?grant_type=refresh_token",
+                       _sb_headers(), {"refresh_token": refresh_token})
+    if code == 200 and "access_token" in data:
+        return data["access_token"], data.get("refresh_token", refresh_token)
+    return None, None
+
+def _ensure_valid_token():
+    """Refresh token if needed. Returns True if session is valid."""
+    token = st.session_state.get("sb_access_token", "")
+    refresh = st.session_state.get("sb_refresh_token", "")
+    if not token:
+        return False
+    # Test token with a lightweight call
+    _, code = _http("GET", f"{_SB_URL}/auth/v1/user", _sb_headers(token))
+    if code == 200:
+        return True
+    # Token expired — try refresh
+    if refresh:
+        new_token, new_refresh = _sb_refresh_token(refresh)
+        if new_token:
+            st.session_state.sb_access_token = new_token
+            st.session_state.sb_refresh_token = new_refresh
+            _save_session_cookies(new_token, new_refresh,
+                                  st.session_state.get("sb_user_id", ""),
+                                  st.session_state.get("sb_user_email", ""))
+            return True
+    return False
+
 def _valid_uuid(val):
     """Reject non-UUID values before they reach DB URLs."""
     import re
@@ -108,6 +189,106 @@ def _sb_delete_trades(user_id, token):
 def _sb_insert_trades(rows, token):
     _http("POST", f"{_SB_URL}/rest/v1/journal_trades",
           _sb_headers(token, {"Prefer": "return=minimal"}), rows)
+
+def _sb_upload_export(file_bytes, filename, user_id, token):
+    """Upload a trade export file to Supabase Storage, return (path, error_msg)."""
+    import mimetypes
+    safe_filename = filename.replace(" ", "_")
+    content_type = mimetypes.guess_type(safe_filename)[0] or "application/octet-stream"
+    path = f"{user_id}/{safe_filename}"
+    url = f"{_SB_URL}/storage/v1/object/Trade%20export/{urllib.parse.quote(path)}"
+    headers = {
+        "apikey": _SB_KEY,
+        "Authorization": f"Bearer {token}",
+        "Content-Type": content_type,
+        "x-upsert": "true",
+    }
+    req = urllib.request.Request(url, data=file_bytes, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+        return path, None
+    except urllib.error.HTTPError as e:
+        body = e.read()
+        try:
+            msg = json.loads(body).get("message") or json.loads(body).get("error") or str(body)
+        except Exception:
+            msg = str(body)
+        return None, f"HTTP {e.code}: {msg}"
+    except Exception as e:
+        return None, str(e)
+
+def _sb_list_exports(user_id, token):
+    """List trade export files for this user. Returns list of {name, path} dicts."""
+    url = f"{_SB_URL}/storage/v1/object/list/Trade%20export"
+    body = {"prefix": f"{user_id}/", "limit": 100}
+    data, code = _http("POST", url, _sb_headers(token), body)
+    if isinstance(data, list):
+        return [{"name": item["name"], "path": f"{user_id}/{item['name']}"} for item in data if "name" in item]
+    return []
+
+def _sb_download_export(path, token):
+    """Download a trade export file, return bytes or None."""
+    url = f"{_SB_URL}/storage/v1/object/Trade%20export/{urllib.parse.quote(path)}"
+    headers = {"apikey": _SB_KEY, "Authorization": f"Bearer {token}"}
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.read()
+    except Exception:
+        return None
+
+def _sb_delete_export(path, token):
+    """Delete a trade export file from storage."""
+    url = f"{_SB_URL}/storage/v1/object/Trade%20export/{urllib.parse.quote(path)}"
+    headers = {"apikey": _SB_KEY, "Authorization": f"Bearer {token}"}
+    req = urllib.request.Request(url, headers=headers, method="DELETE")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except Exception:
+        pass
+
+def _sb_upload_screenshot(file_bytes, filename, trade_id, user_id, token):
+    """Upload image to Supabase Storage, return public URL or None."""
+    import mimetypes
+    safe_filename = filename.replace(" ", "_")
+    content_type = mimetypes.guess_type(safe_filename)[0] or "image/jpeg"
+    path = f"{user_id}/{trade_id}/{safe_filename}"
+    url = f"{_SB_URL}/storage/v1/object/Trade%20screenshot/{urllib.parse.quote(path)}"
+    headers = {
+        "apikey": _SB_KEY,
+        "Authorization": f"Bearer {token}",
+        "Content-Type": content_type,
+        "x-upsert": "true",
+    }
+    req = urllib.request.Request(url, data=file_bytes, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+        return f"{_SB_URL}/storage/v1/object/public/Trade%20screenshot/{urllib.parse.quote(path)}"
+    except Exception:
+        return None
+
+def _download_image_bytes(url):
+    """Download image from URL, return (bytes, mime_type) or (None, None)."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+            return resp.read(), content_type
+    except Exception:
+        return None, None
+
+def _collect_trade_screenshots(trades):
+    """Download all screenshots from journal trades, return list of (bytes, mime_type, trade_name)."""
+    images = []
+    for t in trades:
+        for url in t.get("screenshots", []):
+            img_bytes, mime = _download_image_bytes(url)
+            if img_bytes:
+                images.append((img_bytes, mime, t.get("name", "Trade")))
+    return images
 
 
 # --- Color Palette ---
@@ -839,8 +1020,37 @@ def build_journal_ai_prompt(journal_trades):
 
 Analyze this journal data now. Follow EXACTLY the format from your system prompt.
 All 8 sections are mandatory. Skip NONE. Section 8 (Focus Plan) is the most important.
+
+If trade screenshots are provided, analyze them as part of the trade context — look at chart patterns, entry/exit points, market structure, and any visible mistakes or good decisions. Reference specific screenshots in your analysis where relevant.
 """
     return system_prompt, data_summary
+
+
+def call_gemini_with_images(system_prompt, user_prompt, images):
+    """Call Gemini 2.5 Flash with text + images. images = list of (bytes, mime_type, label)."""
+    import google.generativeai as genai
+
+    api_key = _get_secret('GEMINI_API_KEY') or _get_secret('GOOGLE_API_KEY')
+    if not api_key:
+        return "GEMINI_API_KEY not set."
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name='gemini-2.5-flash',
+        system_instruction=system_prompt
+    )
+
+    parts = []
+    for img_bytes, mime_type, label in images:
+        parts.append(f"\n[Screenshot: {label}]")
+        parts.append(genai.types.Part.from_bytes(data=img_bytes, mime_type=mime_type))
+    parts.append(user_prompt)
+
+    response = model.generate_content(
+        parts,
+        generation_config=genai.types.GenerationConfig(temperature=0.7, max_output_tokens=8000)
+    )
+    return response.text
 
 
 def call_gemini(system_prompt, user_prompt):
@@ -1287,6 +1497,7 @@ def _show_auth_page():
                     st.session_state.sb_refresh_token = _data.get("refresh_token", "")
                     st.session_state.sb_user_id = _data["user"]["id"]
                     st.session_state.sb_user_email = _data["user"]["email"]
+                    _save_session_cookies(_data["access_token"], _data.get("refresh_token", ""), _data["user"]["id"], _data["user"]["email"])
                     st.rerun()
                 else:
                     _msg = _data.get("error_description") or _data.get("msg") or str(_data)
@@ -1310,9 +1521,16 @@ def _show_auth_page():
                         st.error(f"Sign up failed: {_msg2}")
 
 # --- Auth gate ---
-if 'sb_access_token' not in st.session_state:
+if not _restore_session_from_cookies():
     _show_auth_page()
     st.stop()
+
+if not _ensure_valid_token():
+    st.warning("Session abgelaufen — bitte neu einloggen.")
+    _clear_session_cookies()
+    for _k in ['sb_access_token', 'sb_refresh_token', 'sb_user_id', 'sb_user_email', 'journal_trades']:
+        st.session_state.pop(_k, None)
+    st.rerun()
 
 # --- Header (only shown when logged in) ---
 st.markdown('<p class="hero-title">AI Trading Coach</p>', unsafe_allow_html=True)
@@ -1345,6 +1563,7 @@ def load_journal():
                 'profit_loss': _r.get('profit_loss', ''),
                 'confluences': json.loads(_r.get('confluences', '[]') or '[]'),
                 'additions': _r.get('notes', ''),
+                'screenshots': json.loads(_r.get('screenshots', '[]') or '[]'),
             })
         return trades
     except Exception as _e:
@@ -1378,6 +1597,7 @@ def save_journal(trades):
                     'profit_loss': _trunc(_t.get('profit_loss'), 20),
                     'confluences': json.dumps([_trunc(c, 100) for c in (_t.get('confluences') or [])[:20]]),
                     'notes': _trunc(_t.get('additions'), 2000),
+                    'screenshots': json.dumps([str(u) for u in (_t.get('screenshots') or [])[:20]]),
                     'sort_order': _i,
                 })
             _sb_insert_trades(_rows, _token)
@@ -1411,18 +1631,82 @@ with st.sidebar:
     page = st.radio("Page", ["📓 Journal", "📊 Import Data"], index=0, label_visibility="collapsed")
 
     st.markdown("---")
-    st.markdown(f"<h2 style='font-size: 0.8rem; color: {COLORS['text_dim']};'>DATA</h2>", unsafe_allow_html=True)
 
-    # Check for default file
-    default_file = Path(__file__).parent.parent / "Trading data" / "Position History-20251002-20260331_1774991208026.xlsx"
+    _token = st.session_state.get('sb_access_token', '')
+    _uid = st.session_state.get('sb_user_id', '')
 
+    if 'export_files' not in st.session_state:
+        st.session_state.export_files = _sb_list_exports(_uid, _token)
+
+    export_files = st.session_state.export_files
+
+    # --- Upload area ---
+    st.markdown(f"<div style='font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;'>Trade Data</div>", unsafe_allow_html=True)
+    new_upload = st.file_uploader("Upload", type=['xlsx', 'csv'], key="export_uploader", label_visibility="collapsed")
+    if new_upload:
+        safe_name = new_upload.name.replace(" ", "_")
+        already_uploaded = any(f["name"] == safe_name for f in export_files)
+        if already_uploaded:
+            st.session_state.selected_export = safe_name
+        elif new_upload.size > 20 * 1024 * 1024:
+            st.error("File too large (max 20 MB).")
+        else:
+            with st.spinner("Uploading..."):
+                path, err = _sb_upload_export(new_upload.read(), new_upload.name, _uid, _token)
+            if path:
+                st.session_state.export_files = _sb_list_exports(_uid, _token)
+                st.session_state.selected_export = safe_name
+                st.rerun()
+            else:
+                st.error(f"Upload failed: {err}")
+
+    # --- File selector ---
     use_default = False
-    if default_file.exists():
-        use_default = st.checkbox("Load my trades", value=True)
-
     uploaded_file = None
-    if not use_default:
-        uploaded_file = st.file_uploader("Upload trade export", type=['xlsx', 'csv'])
+    selected_export_bytes = None
+
+    if export_files:
+        file_names = [f["name"] for f in export_files]
+        default_idx = 0
+        if 'selected_export' in st.session_state and st.session_state.selected_export in file_names:
+            default_idx = file_names.index(st.session_state.selected_export)
+
+        _sel_col, _del_col, _ref_col = st.columns([6, 1, 1])
+        with _sel_col:
+            selected_name = st.selectbox("Dataset", file_names, index=default_idx, key="export_select", label_visibility="collapsed")
+        with _del_col:
+            if st.button("🗑", key="del_export", help="Delete file"):
+                st.session_state.confirm_del_export = True
+        with _ref_col:
+            if st.button("↻", key="refresh_exports", help="Refresh list"):
+                st.session_state.export_files = _sb_list_exports(_uid, _token)
+                st.rerun()
+
+        if st.session_state.get("confirm_del_export"):
+            st.warning(f"Delete **{selected_name}**?")
+            _dc1, _dc2 = st.columns(2)
+            with _dc1:
+                if st.button("Delete", key="del_export_yes", type="primary", use_container_width=True):
+                    selected_path_del = next(f["path"] for f in export_files if f["name"] == selected_name)
+                    _sb_delete_export(selected_path_del, _token)
+                    st.session_state.export_files = _sb_list_exports(_uid, _token)
+                    st.session_state.pop('selected_export', None)
+                    st.session_state.confirm_del_export = False
+                    st.rerun()
+            with _dc2:
+                if st.button("Cancel", key="del_export_no", use_container_width=True):
+                    st.session_state.confirm_del_export = False
+                    st.rerun()
+
+        st.session_state.selected_export = selected_name
+        selected_path = next(f["path"] for f in export_files if f["name"] == selected_name)
+        with st.spinner("Loading..."):
+            selected_export_bytes = _sb_download_export(selected_path, _token)
+    else:
+        st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; padding: 8px 0;'>No files yet — upload your broker export above.</div>", unsafe_allow_html=True)
+        if st.button("↻ Refresh", key="refresh_exports_empty", use_container_width=True):
+            st.session_state.export_files = _sb_list_exports(_uid, _token)
+            st.rerun()
 
     st.markdown("---")
     st.markdown(f"<h2 style='font-size: 0.8rem; color: {COLORS['text_dim']};'>AI MODEL</h2>", unsafe_allow_html=True)
@@ -1438,24 +1722,24 @@ with st.sidebar:
     st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
     if st.button("Logout", use_container_width=True, key="logout_btn"):
         _sb_logout(st.session_state.get('sb_access_token', ''))
+        _clear_session_cookies()
         for _k in ['sb_access_token', 'sb_refresh_token', 'sb_user_id', 'sb_user_email', 'journal_trades']:
             st.session_state.pop(_k, None)
         st.rerun()
 
 
 # --- Load broker data ---
-_MAX_UPLOAD_MB = 20
 df = None
-if use_default and default_file.exists():
-    df = pd.read_excel(default_file)
-elif uploaded_file:
-    if uploaded_file.size > _MAX_UPLOAD_MB * 1024 * 1024:
-        st.error(f"File too large. Maximum allowed size is {_MAX_UPLOAD_MB} MB.")
-        uploaded_file = None
-    elif uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
+if selected_export_bytes:
+    import io
+    selected_name = st.session_state.get('selected_export', '')
+    try:
+        if selected_name.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(selected_export_bytes))
+        else:
+            df = pd.read_excel(io.BytesIO(selected_export_bytes))
+    except Exception as e:
+        st.error(f"Could not parse file: {e}")
 
 if df is not None:
     trades = parse_trades(df)
@@ -1489,7 +1773,11 @@ if page == "📓 Journal":
                 if "Claude" in ai_model:
                     _analysis = "Claude integration coming in the next version."
                 else:
-                    _analysis = call_gemini(sys_p, dat_p)
+                    _screenshots = _collect_trade_screenshots(_jt_coach)
+                    if _screenshots:
+                        _analysis = call_gemini_with_images(sys_p, dat_p, _screenshots)
+                    else:
+                        _analysis = call_gemini(sys_p, dat_p)
             st.session_state.analysis_result = _analysis
             st.session_state.data_context = dat_p
             st.session_state.chat_messages = []
@@ -1575,6 +1863,29 @@ if page == "📓 Journal":
             custom_conf = st.text_input("Add Custom Confluence", value="", placeholder="e.g. '4H VWAP Bounce' — press Enter to add", key="j_custom_conf")
             trade_additions = st.text_area("Additions / Notes", value=edit_data.get('additions', ''), height=80, placeholder="Notes about the trade...", key="j_additions")
 
+            # --- Screenshots ---
+            st.markdown(f"<div style='font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 12px; margin-bottom: 4px;'>Screenshots</div>", unsafe_allow_html=True)
+            existing_screenshots = list(edit_data.get('screenshots', []))
+
+            # Show existing screenshots with delete option
+            if existing_screenshots:
+                thumb_cols = st.columns(min(len(existing_screenshots), 4))
+                to_remove = []
+                for i, url in enumerate(existing_screenshots):
+                    with thumb_cols[i % 4]:
+                        st.image(url, use_container_width=True)
+                        if st.button("🗑", key=f"del_img_{i}", help="Remove screenshot"):
+                            to_remove.append(url)
+                for url in to_remove:
+                    existing_screenshots.remove(url)
+
+            uploaded_screenshots = st.file_uploader(
+                "Add screenshots (PNG, JPG, WEBP)",
+                type=["png", "jpg", "jpeg", "webp"],
+                accept_multiple_files=True,
+                key="j_screenshots"
+            )
+
             bc1, bc2 = st.columns(2)
             with bc1:
                 if st.button("Save", type="primary", key="j_save", use_container_width=True):
@@ -1584,8 +1895,21 @@ if page == "📓 Journal":
                         final_confluences.append(custom_conf)
 
                     _existing_id = st.session_state.journal_trades[st.session_state.editing_index].get('id') if editing else None
+                    trade_id = _existing_id or str(uuid.uuid4())
+
+                    # Upload new screenshots
+                    new_urls = list(existing_screenshots)
+                    token = st.session_state.get('sb_access_token', '')
+                    user_id = st.session_state.get('sb_user_id', '')
+                    if uploaded_screenshots and token and user_id:
+                        with st.spinner("Uploading screenshots..."):
+                            for f in uploaded_screenshots:
+                                url = _sb_upload_screenshot(f.read(), f.name, trade_id, user_id, token)
+                                if url:
+                                    new_urls.append(url)
+
                     trade_entry = {
-                        'id': _existing_id or str(uuid.uuid4()),
+                        'id': trade_id,
                         'name': trade_name or "New Trade",
                         'open': str(trade_open),
                         'close': str(trade_close),
@@ -1600,6 +1924,7 @@ if page == "📓 Journal":
                         'profit_loss': 'Profit' if gross > 0 else 'Loss',
                         'confluences': final_confluences,
                         'additions': trade_additions,
+                        'screenshots': new_urls,
                     }
 
                     if editing:
@@ -1775,9 +2100,34 @@ Answer follow-up questions directly and concretely using numbers from the data. 
         if prev_j:
             st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
             st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>Previous Journal Analyses</div>", unsafe_allow_html=True)
-            prev_j_opts = {f.stem.replace("journal_analysis_", "Analysis from ").replace("_", " "): f for f in prev_j[:10]}
-            sel_j = st.selectbox("Select", options=["Select..."] + list(prev_j_opts.keys()), index=0, label_visibility="collapsed", key="j_analysis_selector")
-            if sel_j and sel_j != "Select..." and sel_j in prev_j_opts:
+            def _fmt_analysis_name(stem):
+                s = stem.replace("journal_analysis_", "")
+                try:
+                    dt = datetime.strptime(s, "%Y-%m-%d_%H-%M")
+                    return dt.strftime("%Y.%m.%d %H:%M Uhr")
+                except Exception:
+                    return s.replace("_", " ")
+            prev_j_opts = {f"{_fmt_analysis_name(f.stem)} (Trading Journal)": f for f in prev_j[:10]}
+            _jsel_col, _jdel_col = st.columns([5, 1])
+            with _jsel_col:
+                sel_j = st.selectbox("Select", options=["Select..."] + list(prev_j_opts.keys()), index=0, label_visibility="collapsed", key="j_analysis_selector")
+            with _jdel_col:
+                if sel_j and sel_j != "Select...":
+                    if st.button("🗑", key="j_del_analysis", help="Delete this analysis"):
+                        st.session_state.j_confirm_delete = sel_j
+            if st.session_state.get("j_confirm_delete") == sel_j and sel_j and sel_j != "Select...":
+                st.warning(f"Delete **{sel_j}**? This cannot be undone.")
+                _cj1, _cj2 = st.columns(2)
+                with _cj1:
+                    if st.button("Yes, delete", key="j_confirm_yes", type="primary"):
+                        prev_j_opts[sel_j].unlink()
+                        st.session_state.pop("j_confirm_delete", None)
+                        st.rerun()
+                with _cj2:
+                    if st.button("Cancel", key="j_confirm_no"):
+                        st.session_state.pop("j_confirm_delete", None)
+                        st.rerun()
+            elif sel_j and sel_j != "Select..." and sel_j in prev_j_opts:
                 loaded_j = prev_j_opts[sel_j].read_text(encoding='utf-8')
                 if st.session_state.analysis_result != loaded_j:
                     st.session_state.analysis_result = loaded_j
@@ -1906,9 +2256,35 @@ Answer follow-up questions directly and concretely using numbers from the data. 
             if prev_b:
                 st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
                 st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>Previous Broker Analyses</div>", unsafe_allow_html=True)
-                prev_b_opts = {f.stem.replace("broker_analysis_", "Analysis from ").replace("_", " "): f for f in prev_b[:10]}
-                sel_b = st.selectbox("Select", options=["Select..."] + list(prev_b_opts.keys()), index=0, label_visibility="collapsed", key="b_analysis_selector")
-                if sel_b and sel_b != "Select..." and sel_b in prev_b_opts:
+                def _fmt_broker_name(stem):
+                    s = stem.replace("broker_analysis_", "")
+                    try:
+                        dt = datetime.strptime(s, "%Y-%m-%d_%H-%M")
+                        return dt.strftime("%Y.%m.%d %H:%M Uhr")
+                    except Exception:
+                        return s.replace("_", " ")
+                _active_file = st.session_state.get('selected_export', 'Data Upload')
+                prev_b_opts = {f"{_fmt_broker_name(f.stem)} ({_active_file})": f for f in prev_b[:10]}
+                _bsel_col, _bdel_col = st.columns([5, 1])
+                with _bsel_col:
+                    sel_b = st.selectbox("Select", options=["Select..."] + list(prev_b_opts.keys()), index=0, label_visibility="collapsed", key="b_analysis_selector")
+                with _bdel_col:
+                    if sel_b and sel_b != "Select...":
+                        if st.button("🗑", key="b_del_analysis", help="Delete this analysis"):
+                            st.session_state.b_confirm_delete = sel_b
+                if st.session_state.get("b_confirm_delete") == sel_b and sel_b and sel_b != "Select...":
+                    st.warning(f"Delete **{sel_b}**? This cannot be undone.")
+                    _cb1, _cb2 = st.columns(2)
+                    with _cb1:
+                        if st.button("Yes, delete", key="b_confirm_yes", type="primary"):
+                            prev_b_opts[sel_b].unlink()
+                            st.session_state.pop("b_confirm_delete", None)
+                            st.rerun()
+                    with _cb2:
+                        if st.button("Cancel", key="b_confirm_no"):
+                            st.session_state.pop("b_confirm_delete", None)
+                            st.rerun()
+                elif sel_b and sel_b != "Select..." and sel_b in prev_b_opts:
                     loaded_b = prev_b_opts[sel_b].read_text(encoding='utf-8')
                     if st.session_state.broker_analysis_result != loaded_b:
                         st.session_state.broker_analysis_result = loaded_b
