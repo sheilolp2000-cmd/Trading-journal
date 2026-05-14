@@ -1912,7 +1912,7 @@ with _header_login:
 st.markdown(f"""
 <div style="text-align: center; margin: 60px 0 40px 0;">
     <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em; line-height: 1.1;">
-        improve your trading,<br>living in the future
+        IMPROVE YOUR TRADING, TRADING IN THE FUTURE
     </div>
 </div>
 """, unsafe_allow_html=True)
