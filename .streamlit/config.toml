@@ -4,3 +4,11 @@ backgroundColor = "#0d1117"
 secondaryBackgroundColor = "#1e2d45"
 textColor = "#ffffff"
 font = "sans serif"
+
+[client]
+showErrorDetails = false
+toolbarMode = "viewer"
+showSidebarNavigation = false
+
+[logger]
+level = "error"

@@ -23,12 +23,24 @@ try:
 except ImportError:
     _COOKIES_AVAILABLE = False
 
+try:
+    from anthropic import Anthropic
+    _CLAUDE_AVAILABLE = True
+except ImportError:
+    _CLAUDE_AVAILABLE = False
+
+try:
+    import google.generativeai as genai
+    _GEMINI_AVAILABLE = True
+except ImportError:
+    _GEMINI_AVAILABLE = False
+
 # --- Config ---
 st.set_page_config(
     page_title="AI Trading Coach",
     page_icon="https://em-content.zobj.net/source/apple/391/chart-increasing_1f4c8.png",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Load .env locally (ignored on Streamlit Cloud)
@@ -308,92 +320,183 @@ COLORS = {
     'text_bright': '#f8fafc',
 }
 
-# --- Futuristic CSS ---
-st.markdown(f"""
+# --- Professional Trading Design CSS ---
+st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap');
+    /* === LIQUID GLASS CLASS === */
+    .liquid-glass {{
+        background: rgba(255, 255, 255, 0.01);
+        background-blend-mode: luminosity;
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+        border: none;
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
+        border-radius: 14px;
+    }}
+    .liquid-glass::before {{
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1.4px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+    }}
+
     /* === GLOBAL === */
-    .stApp {{
-        background: linear-gradient(180deg, {COLORS['bg_dark']} 0%, #0d1321 50%, {COLORS['bg_dark']} 100%);
-        color: {COLORS['text']};
+    * {{
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }}
+
+    body, .stApp {{
+        background: #000000;
+        color: #ffffff;
+        letter-spacing: 0;
     }}
 
     /* Main content area */
     .main .block-container {{
-        padding-top: 2rem;
-        max-width: 1400px;
+        padding-top: 3rem;
+        padding-left: 3rem;
+        padding-right: 3rem;
+        padding-bottom: 3rem;
+        max-width: 1600px;
     }}
 
     /* === HEADER === */
     .hero-title {{
-        font-size: 2.4rem;
+        font-size: 3.5rem;
         font-weight: 800;
-        background: linear-gradient(135deg, {COLORS['accent_cyan']} 0%, {COLORS['accent_blue']} 50%, {COLORS['accent_purple']} 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: -0.02em;
-        margin-bottom: 0;
-        line-height: 1.2;
+        font-family: 'Instrument Serif', serif;
+        color: #ffffff;
+        letter-spacing: -0.01em;
+        margin-bottom: 1.5rem;
+        margin-top: 0;
+        line-height: 1.1;
     }}
     .hero-subtitle {{
-        color: {COLORS['text']};
-        font-size: 1rem;
-        margin-top: 4px;
-        margin-bottom: 1.5rem;
+        color: #cbd5e1;
+        font-size: 1.1rem;
+        font-weight: 400;
+        margin-top: 0;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }}
+
+    /* Hide import URL and unwanted markdown */
+    .main [data-testid="stMarkdown"]:first-of-type {{
+        display: none !important;
+    }}
+
+    /* Hide Sidebar Completely - Aggressive */
+    [data-testid="stSidebar"] {{
+        position: fixed !important;
+        left: -9999px !important;
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        visibility: hidden !important;
+        overflow: hidden !important;
+    }}
+    [data-testid="stSidebar"] * {{
+        display: none !important;
+        visibility: hidden !important;
+    }}
+    .stSidebar {{
+        display: none !important;
+        width: 0 !important;
+    }}
+    section[data-testid="stSidebar"] {{
+        display: none !important;
+    }}
+
+    /* Hide sidebar toggle/collapse button */
+    [data-testid="collapsedControl"] {{
+        display: none !important;
+    }}
+    button[kind="header"] {{
+        display: none !important;
+    }}
+
+    /* Expand main content to full width */
+    .main {{
+        width: 100% !important;
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }}
+    .block-container {{
+        padding-left: 3rem !important;
+        padding-right: 3rem !important;
+        max-width: 100% !important;
+        width: 100% !important;
     }}
 
     /* === METRIC CARDS === */
     [data-testid="stMetric"] {{
-        background: linear-gradient(145deg, {COLORS['bg_card']} 0%, {COLORS['bg_card_hover']} 100%);
-        border: 1px solid {COLORS['border']};
-        border-radius: 16px;
-        padding: 20px 24px;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: none;
         transition: all 0.3s ease;
     }}
     [data-testid="stMetric"]:hover {{
-        border-color: rgba(59, 130, 246, 0.35);
-        box-shadow: 0 4px 32px rgba(59, 130, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.02);
     }}
     [data-testid="stMetric"] label {{
-        color: {COLORS['text']} !important;
-        font-size: 0.8rem !important;
+        color: #94a3b8 !important;
+        font-size: 0.75rem !important;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.1em;
         font-weight: 600;
+        margin-bottom: 0.8rem;
     }}
     [data-testid="stMetric"] [data-testid="stMetricValue"] {{
-        color: {COLORS['text_bright']} !important;
-        font-size: 1.6rem !important;
+        color: #ffffff !important;
+        font-size: 2.2rem !important;
         font-weight: 700;
+        line-height: 1.2;
     }}
     [data-testid="stMetric"] [data-testid="stMetricDelta"] {{
-        font-size: 0.8rem !important;
+        font-size: 0.85rem !important;
+        margin-top: 0.5rem;
     }}
 
     /* === TABS === */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 0;
-        background: {COLORS['bg_card']};
-        border-radius: 14px;
-        padding: 4px;
-        border: 1px solid {COLORS['border']};
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+        border: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 2rem;
     }}
     .stTabs [data-baseweb="tab"] {{
-        border-radius: 10px;
-        color: {COLORS['text']};
+        border-radius: 0;
+        color: #94a3b8;
         font-weight: 500;
-        padding: 10px 20px;
-        font-size: 0.9rem;
+        padding: 1rem 2rem;
+        font-size: 0.95rem;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
     }}
     .stTabs [data-baseweb="tab"]:hover {{
-        color: {COLORS['text_bright']} !important;
-        background: rgba(255, 255, 255, 0.05);
+        color: #f8fafc !important;
+        background: transparent;
     }}
     .stTabs [aria-selected="true"] {{
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%) !important;
-        color: {COLORS['text_bright']} !important;
-        border: 1px solid rgba(59, 130, 246, 0.3) !important;
+        background: transparent !important;
+        color: #ffffff !important;
+        border-bottom: 2px solid #06b6d4 !important;
     }}
     .stTabs [data-baseweb="tab-highlight"] {{
         display: none;
@@ -404,107 +507,183 @@ st.markdown(f"""
 
     /* === SIDEBAR === */
     [data-testid="stSidebar"] {{
-        background: linear-gradient(180deg, #0d1117 0%, #0a0e17 100%);
-        border-right: 1px solid {COLORS['border']};
+        background: #000000;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 2rem;
     }}
     [data-testid="stSidebar"] .stMarkdown h2 {{
-        color: {COLORS['text_bright']};
-        font-size: 1rem;
+        color: #f8fafc;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        margin-top: 2rem;
+        margin-bottom: 1.2rem;
+    }}
+    [data-testid="stSidebar"] .stMarkdown h2:first-of-type {{
+        margin-top: 0;
     }}
 
     /* === BUTTONS === */
     .stButton > button {{
-        color: {COLORS['text_bright']} !important;
-        background: {COLORS['bg_card']} !important;
-        border: 1px solid {COLORS['border']} !important;
-        border-radius: 12px;
+        color: #ffffff !important;
+        background: #06b6d4 !important;
+        border: none !important;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0.75rem 1.5rem !important;
+        transition: all 0.2s ease;
     }}
     .stButton > button:hover {{
-        color: {COLORS['text_bright']} !important;
-        background: {COLORS['bg_card_hover']} !important;
-        border-color: rgba(59, 130, 246, 0.3) !important;
+        color: #ffffff !important;
+        background: #0891b2 !important;
+        transform: translateY(-1px);
     }}
     .stButton > button[kind="primary"] {{
-        background: linear-gradient(135deg, {COLORS['accent_blue']} 0%, {COLORS['accent_purple']} 100%);
+        background: #06b6d4 !important;
         color: #ffffff !important;
         border: none;
-        border-radius: 12px;
+        border-radius: 8px;
         font-weight: 600;
-        font-size: 1rem;
-        padding: 14px 28px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+        font-size: 0.95rem;
+        padding: 0.75rem 1.5rem !important;
+        transition: all 0.2s ease;
     }}
     .stButton > button[kind="primary"]:hover {{
         color: #ffffff !important;
-        box-shadow: 0 6px 24px rgba(59, 130, 246, 0.5);
+        background: #0891b2 !important;
+        transform: translateY(-1px);
+    }}
+
+    /* Navigation Buttons - Journal & Import Data */
+    [data-testid="column"] > div > button:has-text('JOURNAL'),
+    [data-testid="column"] > div > button:has-text('IMPORT DATA') {{
+        min-height: 120px !important;
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(59, 130, 246, 0.15)) !important;
+        border: 2px solid #06b6d4 !important;
+        color: #06b6d4 !important;
+    }}
+
+    /* Start Analysis Button - Purple Accent */
+    button:has-text('Start Analysis') {{
+        background: linear-gradient(135deg, #8b5cf6, #a855f7) !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+        padding: 16px 24px !important;
+        border-radius: 10px !important;
+    }}
+    button:has-text('Start Analysis'):hover {{
+        background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
         transform: translateY(-2px);
     }}
 
     /* === GENERAL TEXT OVERRIDES === */
-    .stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown td, .stMarkdown th {{
-        color: {COLORS['text']} !important;
+    .stMarkdown, .stMarkdown p {{
+        color: #cbd5e1 !important;
+        font-size: 0.95rem;
+        line-height: 1.6;
     }}
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {{
-        color: {COLORS['text_bright']} !important;
+    .stMarkdown li {{
+        color: #cbd5e1 !important;
+    }}
+    .stMarkdown td, .stMarkdown th {{
+        color: #e2e8f0 !important;
+    }}
+    .stMarkdown h1 {{
+        color: #ffffff !important;
+        font-size: 2.5rem !important;
+        font-weight: 700 !important;
+        margin-top: 2rem !important;
+        margin-bottom: 1rem !important;
+    }}
+    .stMarkdown h2 {{
+        color: #ffffff !important;
+        font-size: 1.8rem !important;
+        font-weight: 600 !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 0.8rem !important;
+    }}
+    .stMarkdown h3 {{
+        color: #f8fafc !important;
+        font-size: 1.3rem !important;
+        font-weight: 600 !important;
+        margin-top: 1rem !important;
+        margin-bottom: 0.5rem !important;
+    }}
+    .stMarkdown h4 {{
+        color: #e2e8f0 !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
     }}
     .stMarkdown strong {{
-        color: {COLORS['text_bright']} !important;
+        color: #ffffff !important;
+        font-weight: 700;
     }}
     .stMarkdown a {{
-        color: {COLORS['accent_cyan']} !important;
+        color: #06b6d4 !important;
+        text-decoration: none;
+    }}
+    .stMarkdown a:hover {{
+        text-decoration: underline;
     }}
 
     /* Checkbox & selectbox text */
     .stCheckbox label span, .stSelectbox label {{
-        color: {COLORS['text']} !important;
+        color: #e2e8f0 !important;
     }}
     /* Sidebar radio labels */
     [data-testid="stSidebar"] .stRadio label, [data-testid="stSidebar"] .stRadio label p,
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label span {{
-        color: {COLORS['text_bright']} !important;
+        color: #f8fafc !important;
     }}
     /* Sidebar general text */
     [data-testid="stSidebar"] .stCheckbox label span,
     [data-testid="stSidebar"] .stSelectbox label,
     [data-testid="stSidebar"] p,
     [data-testid="stSidebar"] label {{
-        color: {COLORS['text_bright']} !important;
+        color: #f8fafc !important;
     }}
     /* Selectbox styling */
     [data-baseweb="select"] {{
-        background: {COLORS['bg_card']} !important;
-        border: 1px solid {COLORS['border']} !important;
+        background: rgba(255, 255, 255, 0.01) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        backdrop-filter: blur(4px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 12px !important;
     }}
     [data-baseweb="select"] > div {{
-        background: {COLORS['bg_card']} !important;
-        color: {COLORS['text']} !important;
+        background: rgba(255, 255, 255, 0.01) !important;
+        color: #e2e8f0 !important;
         border: none !important;
     }}
     [data-baseweb="select"] span {{
-        color: {COLORS['text']} !important;
+        color: #e2e8f0 !important;
     }}
     [data-baseweb="select"] svg {{
-        fill: {COLORS['text_dim']} !important;
+        fill: #94a3b8 !important;
     }}
     /* Dropdown menu */
     [data-baseweb="popover"] {{
-        background: {COLORS['bg_card']} !important;
-        border: 1px solid {COLORS['border']} !important;
+        background: rgba(255, 255, 255, 0.01) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        backdrop-filter: blur(4px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 12px !important;
     }}
     [data-baseweb="popover"] li {{
-        color: {COLORS['text']} !important;
-        background: {COLORS['bg_card']} !important;
+        color: #e2e8f0 !important;
+        background: transparent !important;
     }}
     [data-baseweb="popover"] li:hover {{
-        background: {COLORS['bg_card_hover']} !important;
+        background: rgba(255, 255, 255, 0.1) !important;
     }}
     [role="option"] {{
-        color: {COLORS['text']} !important;
+        color: #e2e8f0 !important;
     }}
     [aria-selected="true"] {{
         background: rgba(59, 130, 246, 0.15) !important;
@@ -512,10 +691,10 @@ st.markdown(f"""
 
     /* File uploader text */
     [data-testid="stFileUploader"] label {{
-        color: {COLORS['text']} !important;
+        color: #e2e8f0 !important;
     }}
     [data-testid="stFileUploader"] span {{
-        color: {COLORS['text_dim']} !important;
+        color: #94a3b8 !important;
     }}
 
     /* Data editor outer wrapper */
@@ -533,69 +712,62 @@ st.markdown(f"""
 
     /* Spinner text */
     .stSpinner > div {{
-        color: {COLORS['text']} !important;
+        color: #e2e8f0 !important;
     }}
 
     /* === DIVIDERS === */
     hr {{
-        border-color: {COLORS['border']} !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
         margin: 1.5rem 0 !important;
     }}
 
     /* === EXPANDER === */
     [data-testid="stExpander"] {{
-        background: {COLORS['bg_card']};
-        border: 1px solid {COLORS['border']};
+        background: rgba(255, 255, 255, 0.01);
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
         overflow: hidden;
     }}
     [data-testid="stExpander"] summary {{
-        background: {COLORS['bg_card']} !important;
-        color: {COLORS['text_bright']} !important;
+        background: transparent !important;
+        color: #f8fafc !important;
         padding: 12px 16px;
     }}
     [data-testid="stExpander"] summary:hover {{
-        background: {COLORS['bg_card_hover']} !important;
-        color: {COLORS['text_bright']} !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #f8fafc !important;
     }}
     [data-testid="stExpander"] summary span {{
-        color: {COLORS['text_bright']} !important;
+        color: #f8fafc !important;
     }}
     [data-testid="stExpander"] summary svg {{
-        fill: {COLORS['text']} !important;
-        color: {COLORS['text']} !important;
+        fill: #e2e8f0 !important;
+        color: #e2e8f0 !important;
     }}
     [data-testid="stExpander"] [data-testid="stExpanderDetails"] {{
-        background: {COLORS['bg_dark']};
-        border-top: 1px solid {COLORS['border']};
-    }}
-    /* Legacy class fallback */
-    .streamlit-expanderHeader {{
-        background: {COLORS['bg_card']} !important;
-        border: 1px solid {COLORS['border']};
-        border-radius: 12px;
-        color: {COLORS['text_bright']} !important;
-    }}
-    .streamlit-expanderHeader:hover {{
-        background: {COLORS['bg_card_hover']} !important;
-        color: {COLORS['text_bright']} !important;
+        background: #000000;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }}
 
-    /* === PLOTLY CHARTS — override backgrounds === */
+    /* === PLOTLY CHARTS === */
     .stPlotlyChart {{
-        border: 1px solid {COLORS['border']};
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         overflow: hidden;
     }}
 
     /* === ANALYSIS CONTAINER === */
     .analysis-box {{
-        background: {COLORS['bg_card']};
-        border: 1px solid {COLORS['border']};
+        background: rgba(255, 255, 255, 0.01);
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         padding: 32px;
         margin-top: 16px;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
     }}
     .analysis-box table {{
         border-collapse: collapse;
@@ -604,15 +776,15 @@ st.markdown(f"""
     .analysis-box th, .analysis-box td {{
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         padding: 10px 14px !important;
-        color: {COLORS['text']} !important;
+        color: #e2e8f0 !important;
     }}
     .analysis-box th {{
         background: rgba(255, 255, 255, 0.05) !important;
-        color: {COLORS['text_bright']} !important;
+        color: #f8fafc !important;
         font-weight: 600;
     }}
 
-    /* General table styling (also for AI output outside analysis-box) */
+    /* General table styling */
     .stMarkdown table {{
         border-collapse: collapse;
         width: 100%;
@@ -620,90 +792,143 @@ st.markdown(f"""
     .stMarkdown th, .stMarkdown td {{
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         padding: 10px 14px !important;
-        color: {COLORS['text']} !important;
+        color: #e2e8f0 !important;
     }}
     .stMarkdown th {{
         background: rgba(255, 255, 255, 0.05) !important;
-        color: {COLORS['text_bright']} !important;
+        color: #f8fafc !important;
         font-weight: 600;
     }}
 
     /* === LONG/SHORT CARDS === */
     .direction-card {{
-        background: {COLORS['bg_card']};
-        border: 1px solid {COLORS['border']};
+        background: rgba(255, 255, 255, 0.01);
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         padding: 24px;
         text-align: center;
     }}
-    .direction-long {{ border-left: 3px solid {COLORS['green']}; }}
-    .direction-short {{ border-left: 3px solid {COLORS['red']}; }}
+    .direction-long {{ border-left: 3px solid #10b981; }}
+    .direction-short {{ border-left: 3px solid #ef4444; }}
 
     /* === INFO BOX === */
     .landing-card {{
-        background: linear-gradient(145deg, {COLORS['bg_card']} 0%, {COLORS['bg_card_hover']} 100%);
-        border: 1px solid {COLORS['border']};
+        background: rgba(255, 255, 255, 0.01);
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 20px;
         padding: 48px;
         text-align: center;
         margin: 40px auto;
         max-width: 700px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
     }}
     .landing-card h3 {{
-        color: {COLORS['text_bright']};
+        color: #f8fafc;
         font-size: 1.4rem;
         margin-bottom: 16px;
+        font-family: 'Instrument Serif', serif;
     }}
     .landing-card p {{
-        color: {COLORS['text']};
+        color: #e2e8f0;
         font-size: 0.95rem;
         line-height: 1.7;
     }}
 
     /* === CHAT INPUT === */
     [data-testid="stChatInput"] {{
-        background: {COLORS['bg_card']} !important;
-        border: 1px solid {COLORS['border']} !important;
+        background: rgba(255, 255, 255, 0.01) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        backdrop-filter: blur(4px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 14px !important;
     }}
     [data-testid="stChatInput"] textarea,
     [data-testid="stChatInput"] input,
-    [data-testid="stChatInput"] div[contenteditable],
     .stChatInput textarea,
     .stChatInput input {{
         color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
         background: transparent !important;
         caret-color: #ffffff !important;
     }}
     [data-testid="stChatInput"] textarea::placeholder,
     .stChatInput textarea::placeholder {{
-        color: {COLORS['text_dim']} !important;
-        -webkit-text-fill-color: {COLORS['text_dim']} !important;
+        color: #94a3b8 !important;
     }}
     [data-testid="stChatInput"] button {{
-        color: {COLORS['accent_cyan']} !important;
+        color: #06b6d4 !important;
     }}
-    /* Bottom chat input bar */
     .stChatFloatingInputContainer {{
-        background: {COLORS['bg_dark']} !important;
-        border-top: 1px solid {COLORS['border']} !important;
+        background: #000000 !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     }}
     [data-testid="stBottom"] {{
-        background: {COLORS['bg_dark']} !important;
+        background: #000000 !important;
     }}
 
     /* === SCROLLBAR === */
     ::-webkit-scrollbar {{ width: 6px; }}
-    ::-webkit-scrollbar-track {{ background: {COLORS['bg_dark']}; }}
-    ::-webkit-scrollbar-thumb {{ background: {COLORS['border']}; border-radius: 3px; }}
-    ::-webkit-scrollbar-thumb:hover {{ background: {COLORS['text_dim']}; }}
+    ::-webkit-scrollbar-track {{ background: #000000; }}
+    ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.1); border-radius: 3px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: #94a3b8; }}
 
     /* === HIDE STREAMLIT DEFAULTS === */
     #MainMenu {{ visibility: hidden; }}
     footer {{ visibility: hidden; }}
     header {{ visibility: hidden; }}
+
+    /* === TRADE CARDS === */
+    .trade-card-btn button {{
+        background: rgba(255, 255, 255, 0.01) !important;
+        border: none !important;
+        color: #94a3b8 !important;
+        padding: 8px 4px !important;
+        font-size: 1.2rem !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        border-radius: 0 10px 10px 0 !important;
+    }}
+    .trade-card-btn button:hover {{
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #06b6d4 !important;
+    }}
+
+    /* === DETAIL PANEL === */
+    .detail-panel {{
+        background: rgba(255, 255, 255, 0.01);
+        -webkit-backdrop-filter: blur(4px);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(6, 182, 212, 0.2);
+        border-radius: 16px;
+        padding: 24px;
+        animation: slideInRight 0.25s ease-out;
+    }}
+    @keyframes slideInRight {{
+        from {{ opacity: 0; transform: translateX(30px); }}
+        to {{ opacity: 1; transform: translateX(0); }}
+    }}
+    .detail-field {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }}
+    .detail-field:last-child {{
+        border-bottom: none;
+    }}
+    .detail-label {{
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }}
+    .detail-value {{
+        color: #f8fafc;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1109,6 +1334,100 @@ def call_gemini_chat(chat_history):
         )
     )
     return response.text
+
+
+# =====================================================
+# CLAUDE API FUNCTIONS
+# =====================================================
+
+def call_claude(system_prompt, user_prompt):
+    """Call Claude Opus 4.6 for analysis."""
+    from anthropic import Anthropic
+
+    api_key = _get_secret('ANTHROPIC_API_KEY')
+    if not api_key:
+        return "ANTHROPIC_API_KEY not set. Add it in Streamlit Secrets or .env!"
+
+    client = Anthropic(api_key=api_key)
+    response = client.messages.create(
+        model='claude-opus-4-1-20250805',
+        max_tokens=8000,
+        temperature=0.7,
+        system=system_prompt,
+        messages=[
+            {'role': 'user', 'content': user_prompt}
+        ]
+    )
+    return response.content[0].text
+
+
+def call_claude_with_images(system_prompt, user_prompt, images):
+    """Call Claude Opus 4.6 with text + images. images = list of (bytes, mime_type, label)."""
+    from anthropic import Anthropic
+    import base64
+
+    api_key = _get_secret('ANTHROPIC_API_KEY')
+    if not api_key:
+        return "ANTHROPIC_API_KEY not set."
+
+    client = Anthropic(api_key=api_key)
+
+    # Build content with images
+    content = []
+    for img_bytes, mime_type, label in images:
+        b64_data = base64.standard_b64encode(img_bytes).decode('utf-8')
+        content.append({
+            'type': 'image',
+            'source': {
+                'type': 'base64',
+                'media_type': mime_type,
+                'data': b64_data
+            }
+        })
+        content.append({
+            'type': 'text',
+            'text': f'\n[Screenshot: {label}]'
+        })
+    content.append({'type': 'text', 'text': user_prompt})
+
+    response = client.messages.create(
+        model='claude-opus-4-1-20250805',
+        max_tokens=8000,
+        temperature=0.7,
+        system=system_prompt,
+        messages=[
+            {'role': 'user', 'content': content}
+        ]
+    )
+    return response.content[0].text
+
+
+def call_claude_chat(chat_history):
+    """Call Claude Opus 4.6 with full chat history."""
+    from anthropic import Anthropic
+
+    api_key = _get_secret('ANTHROPIC_API_KEY')
+    if not api_key:
+        return "ANTHROPIC_API_KEY not set. Add it in Streamlit Secrets or .env!"
+
+    client = Anthropic(api_key=api_key)
+
+    # Build Claude messages (skip system prompt which is first in list)
+    messages = []
+    for msg in chat_history[1:]:  # skip system prompt
+        messages.append({
+            'role': msg['role'],
+            'content': msg['content']
+        })
+
+    response = client.messages.create(
+        model='claude-opus-4-1-20250805',
+        max_tokens=4000,
+        temperature=0.7,
+        system=chat_history[0]['content'],  # system prompt
+        messages=messages
+    )
+    return response.content[0].text
 
 
 # =====================================================
@@ -1532,9 +1851,37 @@ if not _ensure_valid_token():
         st.session_state.pop(_k, None)
     st.rerun()
 
-# --- Header (only shown when logged in) ---
-st.markdown('<p class="hero-title">AI Trading Coach</p>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Upload your trades — the AI tells you what you\'re doing wrong.</p>', unsafe_allow_html=True)
+# --- Header + Login Corner (only shown when logged in) ---
+# Top right login info + Logout in columns
+_header_col1, _header_col2 = st.columns([1, 0.3])
+with _header_col2:
+    _user_email = st.session_state.get('sb_user_email', '')
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(10px); text-align: center;">
+        <div style="font-size: 0.6rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Logged in</div>
+        <div style="font-size: 0.75rem; color: {COLORS['accent_cyan']}; font-weight: 600; word-break: break-word; line-height: 1.3;">
+            {_html.escape(_user_email[:25])}{'...' if len(_user_email) > 25 else ''}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Logout", key="logout_top_right", use_container_width=True, help="Sign out"):
+        _sb_logout(st.session_state.get('sb_access_token', ''))
+        _clear_session_cookies()
+        for _k in ['sb_access_token', 'sb_refresh_token', 'sb_user_id', 'sb_user_email', 'journal_trades']:
+            st.session_state.pop(_k, None)
+        st.rerun()
+
+# Center header
+st.markdown(f"""
+<div style="text-align: center; margin: 40px 0 60px 0;">
+    <div style="font-family: 'Instrument Serif', serif; font-size: 4.5rem; font-weight: 500; color: {COLORS['text_bright']}; letter-spacing: -0.02em; margin-bottom: 12px;">
+        Trading Coach
+    </div>
+    <div style="font-size: 1.2rem; color: {COLORS['text_dim']}; font-weight: 300; letter-spacing: 0.05em;">
+        upload your trades
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # --- Journal helpers (DB-backed) ---
 def load_journal():
@@ -1610,6 +1957,8 @@ if 'show_add_form' not in st.session_state:
     st.session_state.show_add_form = False
 if 'editing_index' not in st.session_state:
     st.session_state.editing_index = None
+if 'viewing_trade_id' not in st.session_state:
+    st.session_state.viewing_trade_id = None
 if 'analysis_result' not in st.session_state:
     st.session_state.analysis_result = None
 if 'chat_messages' not in st.session_state:
@@ -1617,8 +1966,27 @@ if 'chat_messages' not in st.session_state:
 if 'data_context' not in st.session_state:
     st.session_state.data_context = None
 
-# --- Sidebar ---
-with st.sidebar:
+# --- Initialize page nav ---
+if 'page_nav' not in st.session_state:
+    st.session_state.page_nav = "journal"
+
+# --- Large Navigation Cards with Cyan Accent ---
+nav_left, nav_center, nav_right = st.columns([1, 0.5, 1])
+
+with nav_left:
+    if st.button("📓 JOURNAL\n\nCreate new trade entries", key="nav_journal_large", use_container_width=True, help="Log and analyze trades"):
+        st.session_state.page_nav = "journal"
+        st.rerun()
+
+with nav_right:
+    if st.button("📊 IMPORT DATA\n\nUpload broker exports", key="nav_import_large", use_container_width=True, help="Upload broker data"):
+        st.session_state.page_nav = "import_data"
+        st.rerun()
+
+st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
+
+# --- Sidebar (Completely hidden - all state managed in main area) ---
+if False:  # Sidebar disabled
     st.markdown(f"""
     <div style="text-align: center; padding: 20px 0 10px;">
         <div style="font-size: 2rem; margin-bottom: 8px;">&#x1F4C8;</div>
@@ -1627,8 +1995,10 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown(f"<h2 style='font-size: 0.8rem; color: {COLORS['text_dim']};'>NAVIGATION</h2>", unsafe_allow_html=True)
-    page = st.radio("Page", ["📓 Journal", "📊 Import Data"], index=0, label_visibility="collapsed")
+    # Hidden radio - still manages state but not displayed (oben ist die neue Navigation)
+    page_idx = 0 if st.session_state.page_nav == "journal" else 1
+    page = st.radio("Page", ["📓 Journal", "📊 Import Data"], index=page_idx, label_visibility="collapsed", key="sidebar_page")
+    st.session_state.page_nav = "journal" if page == "📓 Journal" else "import_data"
 
     st.markdown("---")
 
@@ -1727,19 +2097,43 @@ with st.sidebar:
             st.session_state.pop(_k, None)
         st.rerun()
 
+# --- Initialize sidebar variables (since sidebar is disabled) ---
+page = "📓 Journal" if st.session_state.page_nav == "journal" else "📊 Import Data"
+ai_model = "Gemini 2.5 Flash (free)"  # Default model
+selected_export_bytes = None
 
 # --- Load broker data ---
 df = None
-if selected_export_bytes:
-    import io
+trades = None
+stats = None
+
+# Load selected export file
+if st.session_state.get('selected_export'):
+    _token = st.session_state.get('sb_access_token', '')
+    _uid = st.session_state.get('sb_user_id', '')
+
+    if 'export_files' not in st.session_state:
+        st.session_state.export_files = _sb_list_exports(_uid, _token)
+
+    export_files = st.session_state.export_files
     selected_name = st.session_state.get('selected_export', '')
-    try:
-        if selected_name.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(selected_export_bytes))
-        else:
-            df = pd.read_excel(io.BytesIO(selected_export_bytes))
-    except Exception as e:
-        st.error(f"Could not parse file: {e}")
+
+    # Find and load the file
+    matching_file = next((f for f in export_files if f["name"] == selected_name), None)
+    if matching_file:
+        selected_path = matching_file["path"]
+        with st.spinner("Loading file..."):
+            selected_export_bytes = _sb_download_export(selected_path, _token)
+
+        if selected_export_bytes:
+            import io
+            try:
+                if selected_name.endswith('.csv'):
+                    df = pd.read_csv(io.BytesIO(selected_export_bytes))
+                else:
+                    df = pd.read_excel(io.BytesIO(selected_export_bytes))
+            except Exception as e:
+                st.error(f"Could not parse file: {e}")
 
 if df is not None:
     trades = parse_trades(df)
@@ -1753,15 +2147,16 @@ if page == "📓 Journal":
     _jt_coach = st.session_state.journal_trades
     _jt_count = len(_jt_coach)
 
-    _hcol1, _hcol2 = st.columns([3, 1])
-    with _hcol1:
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-            <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-            <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Trading Journal</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with _hcol2:
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+        <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Trading Journal</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Centered Start Analysis button
+    _btn_col = st.columns([1, 2, 1])
+    with _btn_col[1]:
         start_j_analysis_top = st.button("Start Analysis", type="primary", use_container_width=True, key="j_coach_btn_top")
 
     if start_j_analysis_top:
@@ -1771,7 +2166,11 @@ if page == "📓 Journal":
             sys_p, dat_p = build_journal_ai_prompt(_jt_coach)
             with st.spinner("AI is analyzing your journal trades..."):
                 if "Claude" in ai_model:
-                    _analysis = "Claude integration coming in the next version."
+                    _screenshots = _collect_trade_screenshots(_jt_coach)
+                    if _screenshots:
+                        _analysis = call_claude_with_images(sys_p, dat_p, _screenshots)
+                    else:
+                        _analysis = call_claude(sys_p, dat_p)
                 else:
                     _screenshots = _collect_trade_screenshots(_jt_coach)
                     if _screenshots:
@@ -1943,78 +2342,161 @@ if page == "📓 Journal":
                     st.session_state.editing_index = None
                     st.rerun()
 
-    # --- Journal Table (interactive) ---
+    # --- Journal Trade List (styled cards) + Detail Panel ---
     st.markdown("<div style='height: 16px'></div>", unsafe_allow_html=True)
 
-    _editor_trades = st.session_state.journal_trades
-    _df_editor = pd.DataFrame([{
-        '_id': t.get('id', ''),
-        'Name': t.get('name', ''),
-        'Open': t.get('open', ''),
-        'Close': t.get('close', ''),
-        'Pair': t.get('pair', ''),
-        'Direction': t.get('direction', 'Long'),
-        'Session': t.get('session', ''),
-        'Strategy': t.get('strategy', ''),
-        'Status': t.get('status', 'Open'),
-        'Net PnL': float(t.get('net_pnl', 0)),
-        'Fees': float(t.get('fees', 0)),
-        'Gross PnL': float(t.get('gross_pnl', 0)),
-        'P/L': t.get('profit_loss', 'Loss'),
-        'Confluences': ', '.join(t.get('confluences', []) if isinstance(t.get('confluences'), list) else []),
-        'Notes': t.get('additions', ''),
-    } for t in _editor_trades]) if _editor_trades else pd.DataFrame(columns=[
-        '_id','Name','Open','Close','Pair','Direction','Session','Strategy','Status','Net PnL','Fees','Gross PnL','P/L','Confluences','Notes'
-    ])
+    _all_trades = st.session_state.journal_trades
+    _viewing_id = st.session_state.get('viewing_trade_id')
+    _viewing_trade = None
+    _viewing_idx = None
+    if _viewing_id:
+        for _vi, _vt in enumerate(_all_trades):
+            if _vt.get('id') == _viewing_id:
+                _viewing_trade = _vt
+                _viewing_idx = _vi
+                break
+        if not _viewing_trade:
+            st.session_state.viewing_trade_id = None
+            _viewing_id = None
 
-    _edited = st.data_editor(
-        _df_editor,
-        column_config={
-            '_id': None,
-            'Direction': st.column_config.SelectboxColumn('Direction', options=['Long', 'Short'], required=True),
-            'Session': st.column_config.SelectboxColumn('Session', options=['', 'London', 'Asia', 'New York']),
-            'Strategy': st.column_config.SelectboxColumn('Strategy', options=[''] + all_strategies),
-            'Status': st.column_config.SelectboxColumn('Status', options=['Open', 'Closed'], required=True),
-            'P/L': st.column_config.SelectboxColumn('P/L', options=['Profit', 'Loss'], required=True),
-            'Net PnL': st.column_config.NumberColumn('Net PnL ($)', format='%.2f'),
-            'Fees': st.column_config.NumberColumn('Fees ($)', format='%.2f'),
-            'Gross PnL': st.column_config.NumberColumn('Gross PnL ($)', format='%.2f', disabled=True),
-            'Open': st.column_config.TextColumn('Open'),
-            'Close': st.column_config.TextColumn('Close'),
-        },
-        num_rows='dynamic',
-        use_container_width=True,
-        hide_index=True,
-        key='journal_editor',
-    )
+    if _viewing_id and _viewing_trade:
+        _list_col, _detail_col = st.columns([1, 1], gap="medium")
+    else:
+        _list_col = st.container()
+        _detail_col = None
 
-    # Save changes whenever editor output differs from stored trades
-    _new_trades = []
-    for _, row in _edited.iterrows():
-        _gross = round(float(row.get('Net PnL', 0) or 0) - float(row.get('Fees', 0) or 0), 2)
-        _row_id = str(row.get('_id', '') or '')
-        if not _row_id or _row_id == 'nan':
-            _row_id = str(uuid.uuid4())
-        _new_trades.append({
-            'id': _row_id,
-            'name': str(row.get('Name', '')),
-            'open': str(row.get('Open', '')),
-            'close': str(row.get('Close', '')),
-            'pair': str(row.get('Pair', '')),
-            'direction': str(row.get('Direction', 'Long')),
-            'session': str(row.get('Session', '')),
-            'strategy': str(row.get('Strategy', '')),
-            'status': str(row.get('Status', 'Open')),
-            'net_pnl': float(row.get('Net PnL', 0) or 0),
-            'fees': float(row.get('Fees', 0) or 0),
-            'gross_pnl': _gross,
-            'profit_loss': str(row.get('P/L', 'Loss')),
-            'confluences': [c.strip() for c in str(row.get('Confluences', '')).split(',') if c.strip()],
-            'additions': str(row.get('Notes', '')),
-        })
-    if _new_trades != st.session_state.journal_trades:
-        st.session_state.journal_trades = _new_trades
-        save_journal(_new_trades)
+    with _list_col:
+        if not _all_trades:
+            st.markdown(f'<div style="text-align:center;color:{COLORS["text_dim"]};padding:48px 20px;"><div style="font-size:2rem;margin-bottom:8px;opacity:0.5;">📓</div><div>No trades yet. Click <b style="color:{COLORS["text_bright"]};">+ Add New Trade</b> to get started.</div></div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div style="display:flex;align-items:center;padding:8px 16px;margin-bottom:4px;"><span style="flex:2;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Trade</span><span style="flex:1;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Pair / Session</span><span style="flex:1;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Strategy</span><span style="flex:1;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;text-align:right;">PnL</span><span style="width:40px;"></span></div>', unsafe_allow_html=True)
+
+            for _idx, _t in enumerate(_all_trades):
+                _pnl = float(_t.get('gross_pnl', 0))
+                _pnl_color = COLORS['green'] if _pnl >= 0 else COLORS['red']
+                _pnl_r2, _pnl_g2, _pnl_b2 = int(_pnl_color[1:3],16), int(_pnl_color[3:5],16), int(_pnl_color[5:7],16)
+                _dir_label = 'LONG' if _t.get('direction') == 'Long' else 'SHORT'
+                _dir_color = COLORS['green'] if _t.get('direction') == 'Long' else COLORS['red']
+                _is_active = _viewing_id == _t.get('id')
+                _active_border = COLORS['accent_cyan'] if _is_active else f"rgba({_pnl_r2},{_pnl_g2},{_pnl_b2},0.19)"
+                _active_bg = COLORS['bg_card_hover'] if _is_active else COLORS['bg_card']
+                _status_color = COLORS['green'] if _t.get('status') == 'Closed' else COLORS['yellow']
+                _has_screenshots = bool(_t.get('screenshots'))
+                _dir_bg = f"rgba({int(_dir_color[1:3],16)},{int(_dir_color[3:5],16)},{int(_dir_color[5:7],16)},0.08)"
+                _screenshot_icon = ' 📷' if _has_screenshots else ''
+                _pnl_sign = '+' if _pnl >= 0 else ''
+                _name_esc = _html.escape(str(_t.get('name', 'Trade')))
+                _strat_disp = _t.get('strategy', '') or '—'
+                _session_disp = _t.get('session', '') or '—'
+
+                _tc1, _tc2 = st.columns([14, 1])
+                with _tc1:
+                    _card_html = (
+                        f'<div style="background:{_active_bg};border:1px solid {_active_border};border-left:3px solid {_pnl_color};border-radius:10px;padding:12px 16px;margin-bottom:2px;">'
+                        f'<div style="display:flex;align-items:center;">'
+                        f'<div style="flex:2;">'
+                        f'<div style="font-weight:600;color:{COLORS["text_bright"]};font-size:0.9rem;">{_name_esc}<span style="font-weight:400;color:{COLORS["text_dim"]};font-size:0.75rem;margin-left:8px;">{_t.get("open","")}</span></div>'
+                        f'<div style="margin-top:3px;"><span style="background:{_dir_bg};color:{_dir_color};font-size:0.65rem;padding:2px 6px;border-radius:4px;font-weight:600;">{_dir_label}</span><span style="color:{_status_color};font-size:0.72rem;margin-left:8px;">{_t.get("status","")}</span>{_screenshot_icon}</div>'
+                        f'</div>'
+                        f'<div style="flex:1;"><span style="color:{COLORS["text_bright"]};font-size:0.85rem;font-weight:600;">{_t.get("pair","")}</span><span style="color:{COLORS["text_dim"]};font-size:0.75rem;margin-left:6px;">· {_session_disp}</span></div>'
+                        f'<div style="flex:1;color:{COLORS["text_dim"]};font-size:0.82rem;">{_strat_disp}</div>'
+                        f'<div style="flex:1;text-align:right;"><div style="font-weight:700;color:{_pnl_color};font-size:1rem;">{_pnl_sign}{_pnl:.2f} $</div></div>'
+                        f'</div></div>'
+                    )
+                    st.markdown(_card_html, unsafe_allow_html=True)
+                with _tc2:
+                    st.markdown("<div class='trade-card-btn'>", unsafe_allow_html=True)
+                    if st.button("›", key=f"view_{_t.get('id', _idx)}", help="View trade details"):
+                        st.session_state.viewing_trade_id = _t.get('id')
+                        st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- Detail Panel (right side, 50%) ---
+    if _detail_col is not None and _viewing_trade:
+        with _detail_col:
+            # Panel with strong visual separation from bg
+            st.markdown(f'<div style="background:#0d1525;border:1px solid rgba(6,182,212,0.35);border-top:3px solid {COLORS["accent_cyan"]};border-radius:16px;padding:20px 24px;box-shadow:0 8px 32px rgba(0,0,0,0.4);position:relative;">', unsafe_allow_html=True)
+
+            # Header row: name + X button (top-right)
+            _detail_name = _html.escape(str(_viewing_trade.get('name', 'Trade')))
+            _dh1, _dh2 = st.columns([5, 1])
+            with _dh1:
+                _dir_val = _viewing_trade.get('direction', '—')
+                _dir_c = COLORS['green'] if _dir_val == 'Long' else COLORS['red']
+                _dir_bg2 = f"rgba({int(_dir_c[1:3],16)},{int(_dir_c[3:5],16)},{int(_dir_c[5:7],16)},0.1)"
+                st.markdown(f'<div style="font-size:1.1rem;font-weight:700;color:{COLORS["text_bright"]};margin-bottom:2px;">{_detail_name}</div><div style="font-size:0.78rem;color:{COLORS["text_dim"]};">Trade Details</div>', unsafe_allow_html=True)
+            with _dh2:
+                if st.button("✕", key="close_detail_panel", help="Close", use_container_width=True):
+                    st.session_state.viewing_trade_id = None
+                    st.rerun()
+
+            st.markdown(f'<div style="height:1px;background:linear-gradient(90deg,{COLORS["accent_cyan"]},transparent);margin:14px 0;"></div>', unsafe_allow_html=True)
+
+            # Fields
+            _fields = [
+                ("Pair", _viewing_trade.get('pair', '—'), None),
+                ("Direction", _dir_val, _dir_c),
+                ("Session", _viewing_trade.get('session', '') or '—', None),
+                ("Strategy", _viewing_trade.get('strategy', '') or '—', None),
+                ("Status", _viewing_trade.get('status', '—'), COLORS['green'] if _viewing_trade.get('status') == 'Closed' else COLORS['yellow']),
+                ("Open", _viewing_trade.get('open', '—'), None),
+                ("Close", _viewing_trade.get('close', '—'), None),
+            ]
+            _fhtml = ''
+            for _lbl, _val, _clr in _fields:
+                _vs = f"color:{_clr};font-weight:600;" if _clr else f"color:{COLORS['text_bright']};font-weight:500;"
+                _fhtml += f'<div class="detail-field"><span class="detail-label">{_lbl}</span><span style="{_vs}font-size:0.9rem;">{_html.escape(str(_val))}</span></div>'
+            st.markdown(_fhtml, unsafe_allow_html=True)
+
+            # PnL box
+            _pnl_v = float(_viewing_trade.get('gross_pnl', 0))
+            _pnl_c = COLORS['green'] if _pnl_v >= 0 else COLORS['red']
+            _pr, _pg, _pb = int(_pnl_c[1:3],16), int(_pnl_c[3:5],16), int(_pnl_c[5:7],16)
+            _net_v = float(_viewing_trade.get('net_pnl', 0))
+            _fees_v = float(_viewing_trade.get('fees', 0))
+            _psign = '+' if _pnl_v >= 0 else ''
+            st.markdown(
+                f'<div style="margin-top:16px;padding:14px 16px;background:rgba({_pr},{_pg},{_pb},0.05);border:1px solid rgba({_pr},{_pg},{_pb},0.2);border-radius:12px;display:flex;justify-content:space-between;align-items:center;">'
+                f'<div><div style="color:{COLORS["text_dim"]};font-size:0.72rem;margin-bottom:2px;">Net PnL</div><div style="color:{COLORS["text_bright"]};font-weight:500;">{_net_v:.2f} $</div></div>'
+                f'<div><div style="color:{COLORS["text_dim"]};font-size:0.72rem;margin-bottom:2px;">Fees</div><div style="color:{COLORS["text_bright"]};font-weight:500;">{_fees_v:.2f} $</div></div>'
+                f'<div><div style="color:{COLORS["text_dim"]};font-size:0.72rem;margin-bottom:2px;">Gross PnL</div><div style="color:{_pnl_c};font-weight:700;font-size:1.2rem;">{_psign}{_pnl_v:.2f} $</div></div>'
+                f'</div>', unsafe_allow_html=True)
+
+            # Confluences
+            _confs = _viewing_trade.get('confluences', [])
+            if _confs and any(_confs):
+                _tags = ''.join([f'<span style="background:rgba(139,92,246,0.09);color:{COLORS["accent_purple"]};padding:4px 10px;border-radius:6px;font-size:0.78rem;margin:3px 4px 3px 0;display:inline-block;border:1px solid rgba(139,92,246,0.15);">{_html.escape(c)}</span>' for c in _confs if c])
+                st.markdown(f'<div style="margin-top:16px;"><div style="font-size:0.75rem;color:{COLORS["text_dim"]};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Confluences</div><div>{_tags}</div></div>', unsafe_allow_html=True)
+
+            # Notes
+            _notes = _viewing_trade.get('additions', '')
+            if _notes:
+                st.markdown(f'<div style="margin-top:14px;"><div style="font-size:0.75rem;color:{COLORS["text_dim"]};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Notes</div><div style="color:{COLORS["text"]};font-size:0.86rem;line-height:1.6;background:{COLORS["bg_dark"]};padding:10px 12px;border-radius:8px;">{_html.escape(str(_notes))}</div></div>', unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Screenshots (below panel card)
+            _screenshots = _viewing_trade.get('screenshots', [])
+            if _screenshots:
+                st.markdown(f'<div style="margin-top:14px;font-size:0.75rem;color:{COLORS["text_dim"]};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Screenshots</div>', unsafe_allow_html=True)
+                for _surl in _screenshots:
+                    st.image(_surl, use_container_width=True)
+
+            # Edit / Delete
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+            _ab1, _ab2 = st.columns(2)
+            with _ab1:
+                if st.button("✏️ Edit", key="detail_edit_btn", use_container_width=True):
+                    st.session_state.editing_index = _viewing_idx
+                    st.session_state.show_add_form = True
+                    st.session_state.viewing_trade_id = None
+                    st.rerun()
+            with _ab2:
+                if st.button("🗑 Delete", key="detail_delete_btn", use_container_width=True):
+                    st.session_state.journal_trades.pop(_viewing_idx)
+                    save_journal(st.session_state.journal_trades)
+                    st.session_state.viewing_trade_id = None
+                    st.rerun()
 
     # --- Analytics (always shown, below table) ---
     st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
@@ -2090,7 +2572,10 @@ Answer follow-up questions directly and concretely using numbers from the data. 
             for msg in st.session_state.chat_messages:
                 chat_hist_j.append(msg)
             with st.spinner(""):
-                response_j = call_gemini_chat(chat_hist_j)
+                if "Claude" in ai_model:
+                    response_j = call_claude_chat(chat_hist_j)
+                else:
+                    response_j = call_gemini_chat(chat_hist_j)
             st.session_state.chat_messages.append({'role': 'assistant', 'content': response_j})
             st.rerun()
 
@@ -2149,17 +2634,71 @@ elif page == "📊 Import Data":
     if 'broker_data_context' not in st.session_state:
         st.session_state.broker_data_context = None
 
-    # Header row with Start Analysis button top-right
-    _b_hcol1, _b_hcol2 = st.columns([3, 1])
-    with _b_hcol1:
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-            <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-            <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Import Data</div>
-        </div>
-        <div style="font-size: 0.85rem; color: {COLORS['text_dim']}; margin-bottom: 24px;">Analytics and AI Coach powered by your broker export (Bitget, etc.)</div>
-        """, unsafe_allow_html=True)
-    with _b_hcol2:
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Import Data</div>
+    </div>
+    <div style="font-size: 0.85rem; color: {COLORS['text_dim']}; margin-bottom: 24px;">Analytics and AI Coach powered by your broker export (Bitget, etc.)</div>
+    """, unsafe_allow_html=True)
+
+    # --- Upload Section ---
+    st.markdown(f"<div style='font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>📤 Upload Broker Export</div>", unsafe_allow_html=True)
+
+    _token = st.session_state.get('sb_access_token', '')
+    _uid = st.session_state.get('sb_user_id', '')
+
+    if 'export_files' not in st.session_state:
+        st.session_state.export_files = _sb_list_exports(_uid, _token)
+
+    export_files = st.session_state.export_files
+
+    # Upload new file
+    _upload_col1, _upload_col2, _upload_col3 = st.columns([2, 1, 1])
+    with _upload_col1:
+        new_upload = st.file_uploader("Choose XLSX or CSV", type=['xlsx', 'csv'], key="export_uploader_main", label_visibility="collapsed")
+    with _upload_col2:
+        if st.button("Upload", key="upload_btn_main", use_container_width=True):
+            if new_upload:
+                safe_name = new_upload.name.replace(" ", "_")
+                already_uploaded = any(f["name"] == safe_name for f in export_files)
+                if already_uploaded:
+                    st.session_state.selected_export = safe_name
+                    st.info(f"File already exists: {safe_name}")
+                elif new_upload.size > 20 * 1024 * 1024:
+                    st.error("File too large (max 20 MB).")
+                else:
+                    with st.spinner("Uploading..."):
+                        path, err = _sb_upload_export(new_upload.read(), new_upload.name, _uid, _token)
+                    if path:
+                        st.session_state.export_files = _sb_list_exports(_uid, _token)
+                        st.session_state.selected_export = safe_name
+                        st.success(f"Uploaded: {safe_name}")
+                        st.rerun()
+                    else:
+                        st.error(f"Upload failed: {err}")
+            else:
+                st.warning("Select a file first")
+    with _upload_col3:
+        if st.button("↻", key="refresh_exports_main", use_container_width=True, help="Refresh list"):
+            st.session_state.export_files = _sb_list_exports(_uid, _token)
+            st.rerun()
+
+    # File selector dropdown
+    if export_files:
+        file_names = [f["name"] for f in export_files]
+        default_idx = 0
+        if 'selected_export' in st.session_state and st.session_state.selected_export in file_names:
+            default_idx = file_names.index(st.session_state.selected_export)
+
+        selected_name = st.selectbox("Select Dataset", file_names, index=default_idx, key="export_select_main", label_visibility="collapsed")
+        st.session_state.selected_export = selected_name
+
+    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+
+    # Centered Start Analysis button
+    _b_btn_col = st.columns([1, 2, 1])
+    with _b_btn_col[1]:
         start_b_analysis = st.button("Start Analysis", type="primary", use_container_width=True,
                                      key="b_coach_btn", disabled=(df is None))
 
@@ -2189,8 +2728,7 @@ elif page == "📊 Import Data":
         system_prompt_b, data_prompt_b = build_ai_prompt(stats, trades)
         with st.spinner("AI is analyzing your broker trades..."):
             if "Claude" in ai_model:
-                st.warning("Claude Opus requires an ANTHROPIC_API_KEY in the .env file.")
-                analysis_b = "Claude integration coming in the next version."
+                analysis_b = call_claude(system_prompt_b, data_prompt_b)
             else:
                 analysis_b = call_gemini(system_prompt_b, data_prompt_b)
         st.session_state.broker_analysis_result = analysis_b
@@ -2245,7 +2783,10 @@ Answer follow-up questions directly and concretely using numbers from the data. 
             for msg in st.session_state.broker_chat_messages:
                 chat_hist_b.append(msg)
             with st.spinner(""):
-                response_b = call_gemini_chat(chat_hist_b)
+                if "Claude" in ai_model:
+                    response_b = call_claude_chat(chat_hist_b)
+                else:
+                    response_b = call_gemini_chat(chat_hist_b)
             st.session_state.broker_chat_messages.append({'role': 'assistant', 'content': response_b})
             st.rerun()
 
