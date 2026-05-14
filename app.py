@@ -62,6 +62,7 @@ else:
     _cookie_mgr = None
 
 def _save_session_cookies(access_token, refresh_token, user_id, user_email):
+    """Save session to browser (cookies + localStorage for 24+ hours)"""
     if _cookie_mgr is None:
         return
     try:
@@ -69,6 +70,26 @@ def _save_session_cookies(access_token, refresh_token, user_id, user_email):
         _cookie_mgr.set("tcj_refresh_token", refresh_token, key="set_rt")
         _cookie_mgr.set("tcj_user_id", user_id, key="set_uid")
         _cookie_mgr.set("tcj_user_email", user_email, key="set_em")
+    except Exception:
+        pass
+
+    # Also save to localStorage (persists until manually cleared, survives browser refresh)
+    data = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user_id": user_id,
+        "user_email": user_email,
+        "saved_at": str(datetime.now())
+    }
+    try:
+        import base64
+        encoded = base64.b64encode(json.dumps(data).encode()).decode()
+        st.markdown(f"""
+        <script>
+        localStorage.setItem('tcj_session', '{encoded}');
+        console.log('Session saved to localStorage (24+ hours)');
+        </script>
+        """, unsafe_allow_html=True)
     except Exception:
         pass
 
@@ -82,22 +103,27 @@ def _clear_session_cookies():
             pass
 
 def _restore_session_from_cookies():
-    """Try to restore session from cookies. Returns True if successful."""
-    if _cookie_mgr is None or 'sb_access_token' in st.session_state:
-        return 'sb_access_token' in st.session_state
-    try:
-        cookies = _cookie_mgr.get_all()
-        token = cookies.get("tcj_access_token", "")
-        uid = cookies.get("tcj_user_id", "")
-        email = cookies.get("tcj_user_email", "")
-        if token and uid:
-            st.session_state.sb_access_token = token
-            st.session_state.sb_refresh_token = cookies.get("tcj_refresh_token", "")
-            st.session_state.sb_user_id = uid
-            st.session_state.sb_user_email = email
-            return True
-    except Exception:
-        pass
+    """Restore session from persistent browser storage (24+ hours)"""
+    if 'sb_access_token' in st.session_state:
+        return True
+
+    # Try to restore from extra-streamlit-components cookies (persistent in browser)
+    if _cookie_mgr is not None:
+        try:
+            cookies = _cookie_mgr.get_all()
+            token = cookies.get("tcj_access_token", "")
+            uid = cookies.get("tcj_user_id", "")
+            email = cookies.get("tcj_user_email", "")
+
+            if token and uid:
+                st.session_state.sb_access_token = token
+                st.session_state.sb_refresh_token = cookies.get("tcj_refresh_token", "")
+                st.session_state.sb_user_id = uid
+                st.session_state.sb_user_email = email
+                return True
+        except Exception as e:
+            pass
+
     return False
 
 # --- Supabase REST helpers (no SDK, avoids httpx/h2 issues on Python 3.14) ---
