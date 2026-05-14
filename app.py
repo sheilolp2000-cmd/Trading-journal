@@ -2728,20 +2728,9 @@ elif page == "📊 Import Data":
         start_b_analysis = st.button("Start Analysis", type="primary", use_container_width=True,
                                      key="b_coach_btn", disabled=(df is None))
 
-    # --- Analytics ---
-    if df is None:
-        render_analytics(pd.DataFrame(columns=['date','pnl','asset','is_win']), None, tab_prefix='broker')
-        st.info("Enable 'Load my trades' in the sidebar or upload your broker export to see real data.")
-    else:
-        _b_trades = trades.rename(columns={'date': 'date', 'pnl': 'pnl'}).copy()
-        _b_trades['asset'] = _b_trades['asset'] if 'asset' in _b_trades.columns else 'Unknown'
-        _b_trades['is_win'] = _b_trades['pnl'] > 0
-        render_analytics(_b_trades[['date','pnl','asset','is_win']], stats, tab_prefix='broker')
-
-    # --- Broker AI Coach ---
-    st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
+    # --- Broker AI Coach (directly after button) ---
     st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 32px; margin-bottom: 24px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
         <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">AI Trading Coach</div>
         <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your imported broker data</div>
@@ -2749,7 +2738,7 @@ elif page == "📊 Import Data":
     """, unsafe_allow_html=True)
 
     if df is None:
-        st.info("Load your broker export in the sidebar to enable the AI Coach.")
+        st.info("📤 Load your broker export above to enable the AI Coach.")
     elif start_b_analysis:
         system_prompt_b, data_prompt_b = build_ai_prompt(stats, trades)
         with st.spinner("AI is analyzing your broker trades..."):
@@ -2815,6 +2804,24 @@ Answer follow-up questions directly and concretely using numbers from the data. 
                     response_b = call_gemini_chat(chat_hist_b)
             st.session_state.broker_chat_messages.append({'role': 'assistant', 'content': response_b})
             st.rerun()
+
+    # --- Analytics (placed after AI Coach) ---
+    st.markdown("<div style='height: 60px'></div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+        <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Analytics</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if df is None:
+        render_analytics(pd.DataFrame(columns=['date','pnl','asset','is_win']), None, tab_prefix='broker')
+        st.info("📤 Upload your broker export to see detailed analytics.")
+    else:
+        _b_trades = trades.rename(columns={'date': 'date', 'pnl': 'pnl'}).copy()
+        _b_trades['asset'] = _b_trades['asset'] if 'asset' in _b_trades.columns else 'Unknown'
+        _b_trades['is_win'] = _b_trades['pnl'] > 0
+        render_analytics(_b_trades[['date','pnl','asset','is_win']], stats, tab_prefix='broker')
 
     if df is not None:
         analyses_dir_b = Path(__file__).parent / "analyses"
