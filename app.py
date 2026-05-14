@@ -582,18 +582,18 @@ st.markdown("""
         transform: translateY(-1px);
     }}
 
-    /* Navigation Buttons - Journal & Import Data */
-    [data-testid="column"] > div > button:has-text('JOURNAL'),
-    [data-testid="column"] > div > button:has-text('IMPORT DATA') {{
-        min-height: 120px !important;
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
+    /* All buttons - cyan to purple gradient by default */
+    [data-testid="stButton"] button,
+    [role="button"],
+    button {{
         background: linear-gradient(135deg, #06b6d4, #8b5cf6) !important;
-        border: 2px solid transparent !important;
         color: #ffffff !important;
+        border: none !important;
+        font-weight: 700 !important;
     }}
 
-    /* Start Analysis Button - Purple Accent */
+    /* Start Analysis Button - Override with Pure Purple */
+    [data-testid="stButton"] button:has-text('Start Analysis'),
     button:has-text('Start Analysis') {{
         background: linear-gradient(135deg, #8b5cf6, #a855f7) !important;
         color: #ffffff !important;
