@@ -588,9 +588,9 @@ st.markdown("""
         min-height: 120px !important;
         font-size: 1.3rem !important;
         font-weight: 700 !important;
-        background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(59, 130, 246, 0.15)) !important;
-        border: 2px solid #06b6d4 !important;
-        color: #06b6d4 !important;
+        background: linear-gradient(135deg, #06b6d4, #8b5cf6) !important;
+        border: 2px solid transparent !important;
+        color: #ffffff !important;
     }}
 
     /* Start Analysis Button - Purple Accent */
