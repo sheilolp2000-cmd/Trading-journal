@@ -2231,6 +2231,73 @@ if page == "📓 Journal":
             (_out / f"journal_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.md").write_text(_analysis, encoding='utf-8')
             st.rerun()
 
+    # =====================================================
+    # AI COACH (inline, directly after Start Analysis button)
+    # =====================================================
+    st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+        <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">AI Trading Coach</div>
+        <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your journal trades</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.session_state.analysis_result:
+        st.markdown(f'<div class="analysis-box">', unsafe_allow_html=True)
+        st.markdown(st.session_state.analysis_result)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+            <div style="width: 3px; height: 24px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
+            <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']};">Follow-up Questions</div>
+        </div>
+        <div style="font-size: 0.85rem; color: {COLORS['text_dim']}; margin-bottom: 16px;">
+            Ask the AI Coach anything about your analysis — e.g. "Why do I lose on Fridays?" or "Which pairs are my worst?"
+        </div>
+        """, unsafe_allow_html=True)
+
+        for msg in st.session_state.chat_messages:
+            if msg['role'] == 'user':
+                st.markdown(f"""
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+                    <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px 16px 4px 16px; padding: 12px 18px; max-width: 80%; color: {COLORS['text_bright']};">
+                        {_html.escape(str(msg['content']))}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div style="background: {COLORS["bg_card"]}; border: 1px solid {COLORS["border"]}; border-radius: 16px 16px 16px 4px; padding: 16px 20px; max-width: 90%; margin-bottom: 12px;">', unsafe_allow_html=True)
+                st.markdown(msg['content'])
+                st.markdown('</div>', unsafe_allow_html=True)
+
+        user_question_j = st.chat_input("Ask the AI Coach about your journal...", key="j_coach_chat")
+        if user_question_j:
+            st.session_state.chat_messages.append({'role': 'user', 'content': user_question_j})
+            chat_sys_j = f"""You are an AI Trading Coach analyzing journal trade data.
+
+Trading data:
+{st.session_state.data_context}
+
+Your previous analysis:
+{st.session_state.analysis_result}
+
+Answer follow-up questions directly and concretely using numbers from the data. Address the trader as "you". Keep answers brief (2-5 sentences) unless details are requested. Be honest and constructive."""
+            chat_hist_j = [{'role': 'system', 'content': chat_sys_j}]
+            for msg in st.session_state.chat_messages:
+                chat_hist_j.append(msg)
+            with st.spinner(""):
+                if "Claude" in ai_model:
+                    response_j = call_claude_chat(chat_hist_j)
+                else:
+                    response_j = call_gemini_chat(chat_hist_j)
+            st.session_state.chat_messages.append({'role': 'assistant', 'content': response_j})
+            st.rerun()
+
+    st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
+
     default_strategies = ["Trend + Trend", "Trend + Reverse", "Reversal", "Breakout", "Scalping", "Swing Trading", "Position Trading"]
     default_confluences = [
         "Strong Entry", "Weak Entry", "1H STDV 1", "1H VWAP",
@@ -2556,116 +2623,6 @@ if page == "📓 Journal":
     jt = st.session_state.journal_trades
     _j_trades_df, _j_stats = journal_to_trades_and_stats(jt)
     render_analytics(_j_trades_df, _j_stats)
-
-    # =====================================================
-    # AI COACH (inline, journal data only)
-    # =====================================================
-    st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
-        <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">AI Trading Coach</div>
-        <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your journal trades</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    jt_coach = _jt_coach
-    jt_count = _jt_count
-
-    if st.session_state.analysis_result:
-        st.markdown(f'<div class="analysis-box">', unsafe_allow_html=True)
-        st.markdown(st.session_state.analysis_result)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-            <div style="width: 3px; height: 24px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-            <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']};">Follow-up Questions</div>
-        </div>
-        <div style="font-size: 0.85rem; color: {COLORS['text_dim']}; margin-bottom: 16px;">
-            Ask the AI Coach anything about your analysis — e.g. "Why do I lose on Fridays?" or "Which pairs are my worst?"
-        </div>
-        """, unsafe_allow_html=True)
-
-        for msg in st.session_state.chat_messages:
-            if msg['role'] == 'user':
-                st.markdown(f"""
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                    <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px 16px 4px 16px; padding: 12px 18px; max-width: 80%; color: {COLORS['text_bright']};">
-                        {_html.escape(str(msg['content']))}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div style="background: {COLORS["bg_card"]}; border: 1px solid {COLORS["border"]}; border-radius: 16px 16px 16px 4px; padding: 16px 20px; max-width: 90%; margin-bottom: 12px;">', unsafe_allow_html=True)
-                st.markdown(msg['content'])
-                st.markdown('</div>', unsafe_allow_html=True)
-
-        user_question_j = st.chat_input("Ask the AI Coach about your journal...", key="j_coach_chat")
-        if user_question_j:
-            st.session_state.chat_messages.append({'role': 'user', 'content': user_question_j})
-            chat_sys_j = f"""You are an AI Trading Coach analyzing journal trade data.
-
-Trading data:
-{st.session_state.data_context}
-
-Your previous analysis:
-{st.session_state.analysis_result}
-
-Answer follow-up questions directly and concretely using numbers from the data. Address the trader as "you". Keep answers brief (2-5 sentences) unless details are requested. Be honest and constructive."""
-            chat_hist_j = [{'role': 'system', 'content': chat_sys_j}]
-            for msg in st.session_state.chat_messages:
-                chat_hist_j.append(msg)
-            with st.spinner(""):
-                if "Claude" in ai_model:
-                    response_j = call_claude_chat(chat_hist_j)
-                else:
-                    response_j = call_gemini_chat(chat_hist_j)
-            st.session_state.chat_messages.append({'role': 'assistant', 'content': response_j})
-            st.rerun()
-
-    analyses_dir_j = Path(__file__).parent / "analyses"
-    if analyses_dir_j.exists():
-        prev_j = sorted(analyses_dir_j.glob("journal_analysis_*.md"), reverse=True)
-        if prev_j:
-            st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>Previous Journal Analyses</div>", unsafe_allow_html=True)
-            def _fmt_analysis_name(stem):
-                s = stem.replace("journal_analysis_", "")
-                try:
-                    dt = datetime.strptime(s, "%Y-%m-%d_%H-%M")
-                    return dt.strftime("%Y.%m.%d %H:%M Uhr")
-                except Exception:
-                    return s.replace("_", " ")
-            prev_j_opts = {f"{_fmt_analysis_name(f.stem)} (Trading Journal)": f for f in prev_j[:10]}
-            _jsel_col, _jdel_col = st.columns([5, 1])
-            with _jsel_col:
-                sel_j = st.selectbox("Select", options=["Select..."] + list(prev_j_opts.keys()), index=0, label_visibility="collapsed", key="j_analysis_selector")
-            with _jdel_col:
-                if sel_j and sel_j != "Select...":
-                    if st.button("🗑", key="j_del_analysis", help="Delete this analysis"):
-                        st.session_state.j_confirm_delete = sel_j
-            if st.session_state.get("j_confirm_delete") == sel_j and sel_j and sel_j != "Select...":
-                st.warning(f"Delete **{sel_j}**? This cannot be undone.")
-                _cj1, _cj2 = st.columns(2)
-                with _cj1:
-                    if st.button("Yes, delete", key="j_confirm_yes", type="primary"):
-                        prev_j_opts[sel_j].unlink()
-                        st.session_state.pop("j_confirm_delete", None)
-                        st.rerun()
-                with _cj2:
-                    if st.button("Cancel", key="j_confirm_no"):
-                        st.session_state.pop("j_confirm_delete", None)
-                        st.rerun()
-            elif sel_j and sel_j != "Select..." and sel_j in prev_j_opts:
-                loaded_j = prev_j_opts[sel_j].read_text(encoding='utf-8')
-                if st.session_state.analysis_result != loaded_j:
-                    st.session_state.analysis_result = loaded_j
-                    _, dp_j = build_journal_ai_prompt(jt_coach)
-                    st.session_state.data_context = dp_j
-                    st.session_state.chat_messages = []
-                    st.rerun()
 
 
 # =====================================================
