@@ -1883,11 +1883,11 @@ _header_feedback, _header_center, _header_login = st.columns([0.25, 1, 0.3])
 
 with _header_feedback:
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.08)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(10px); text-align: center;">
-        <div style="font-size: 0.6rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Feedback</div>
-        <a href="mailto:timmueller150800@gmail.com?subject=Trading%20Coach%20Feedback" style="font-size: 0.75rem; color: {COLORS['accent_purple']}; font-weight: 600; text-decoration: none; word-break: break-word; line-height: 1.3; display: block;">
-            📧 Send
-        </a>
+    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.08)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 12px 16px; backdrop-filter: blur(10px); text-align: center;">
+        <div style="font-size: 0.6rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">Feedback</div>
+        <div style="font-size: 0.8rem; color: {COLORS['accent_purple']}; font-weight: 600; word-break: break-all; line-height: 1.4;">
+            timmueller150800@gmail.com
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
