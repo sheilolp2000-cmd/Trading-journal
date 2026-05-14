@@ -1908,7 +1908,16 @@ with _header_login:
             st.session_state.pop(_k, None)
         st.rerun()
 
-# Center header
+# Main tagline header
+st.markdown(f"""
+<div style="text-align: center; margin: 60px 0 40px 0;">
+    <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em; line-height: 1.1;">
+        improve your trading,<br>living in the future
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Center subheader
 st.markdown(f"""
 <div style="text-align: center; margin: 40px 0 60px 0;">
     <div style="font-family: 'Instrument Serif', serif; font-size: 4.5rem; font-weight: 500; color: {COLORS['text_bright']}; letter-spacing: -0.02em; margin-bottom: 12px;">
