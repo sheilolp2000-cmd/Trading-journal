@@ -2048,100 +2048,10 @@ st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 _token = st.session_state.get('sb_access_token', '')
 _uid = st.session_state.get('sb_user_id', '')
 
-    if 'export_files' not in st.session_state:
-        st.session_state.export_files = _sb_list_exports(_uid, _token)
+if 'export_files' not in st.session_state:
+    st.session_state.export_files = _sb_list_exports(_uid, _token)
 
-    export_files = st.session_state.export_files
-
-    # --- Upload area ---
-    st.markdown(f"<div style='font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;'>Trade Data</div>", unsafe_allow_html=True)
-    new_upload = st.file_uploader("Upload", type=['xlsx', 'csv'], key="export_uploader", label_visibility="collapsed")
-    if new_upload:
-        safe_name = new_upload.name.replace(" ", "_")
-        already_uploaded = any(f["name"] == safe_name for f in export_files)
-        if already_uploaded:
-            st.session_state.selected_export = safe_name
-        elif new_upload.size > 20 * 1024 * 1024:
-            st.error("File too large (max 20 MB).")
-        else:
-            with st.spinner("Uploading..."):
-                path, err = _sb_upload_export(new_upload.read(), new_upload.name, _uid, _token)
-            if path:
-                st.session_state.export_files = _sb_list_exports(_uid, _token)
-                st.session_state.selected_export = safe_name
-                st.rerun()
-            else:
-                st.error(f"Upload failed: {err}")
-
-    # --- File selector ---
-    use_default = False
-    uploaded_file = None
-    selected_export_bytes = None
-
-    if export_files:
-        file_names = [f["name"] for f in export_files]
-        default_idx = 0
-        if 'selected_export' in st.session_state and st.session_state.selected_export in file_names:
-            default_idx = file_names.index(st.session_state.selected_export)
-
-        _sel_col, _del_col, _ref_col = st.columns([6, 1, 1])
-        with _sel_col:
-            selected_name = st.selectbox("Dataset", file_names, index=default_idx, key="export_select", label_visibility="collapsed")
-        with _del_col:
-            if st.button("🗑", key="del_export", help="Delete file"):
-                st.session_state.confirm_del_export = True
-        with _ref_col:
-            if st.button("↻", key="refresh_exports", help="Refresh list"):
-                st.session_state.export_files = _sb_list_exports(_uid, _token)
-                st.rerun()
-
-        if st.session_state.get("confirm_del_export"):
-            st.warning(f"Delete **{selected_name}**?")
-            _dc1, _dc2 = st.columns(2)
-            with _dc1:
-                if st.button("Delete", key="del_export_yes", type="primary", use_container_width=True):
-                    selected_path_del = next(f["path"] for f in export_files if f["name"] == selected_name)
-                    _sb_delete_export(selected_path_del, _token)
-                    st.session_state.export_files = _sb_list_exports(_uid, _token)
-                    st.session_state.pop('selected_export', None)
-                    st.session_state.confirm_del_export = False
-                    st.rerun()
-            with _dc2:
-                if st.button("Cancel", key="del_export_no", use_container_width=True):
-                    st.session_state.confirm_del_export = False
-                    st.rerun()
-
-        st.session_state.selected_export = selected_name
-        selected_path = next(f["path"] for f in export_files if f["name"] == selected_name)
-        with st.spinner("Loading..."):
-            selected_export_bytes = _sb_download_export(selected_path, _token)
-    else:
-        st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; padding: 8px 0;'>No files yet — upload your broker export above.</div>", unsafe_allow_html=True)
-        if st.button("↻ Refresh", key="refresh_exports_empty", use_container_width=True):
-            st.session_state.export_files = _sb_list_exports(_uid, _token)
-            st.rerun()
-
-    st.markdown("---")
-    st.markdown(f"<h2 style='font-size: 0.8rem; color: {COLORS['text_dim']};'>AI MODEL</h2>", unsafe_allow_html=True)
-    ai_model = st.selectbox("Model", ["Gemini 2.5 Flash (free)", "Claude Opus 4.6 (paid)"], index=0, label_visibility="collapsed")
-
-    st.markdown("---")
-    st.markdown(f"""
-    <div style="padding: 12px 16px; background: {COLORS['bg_card']}; border-radius: 12px; border: 1px solid {COLORS['border']}; margin-top: 20px;">
-        <div style="font-size: 0.7rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Logged in as</div>
-        <div style="font-size: 0.8rem; color: {COLORS['accent_cyan']}; word-break: break-all;">{_html.escape(st.session_state.get('sb_user_email', ''))}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
-    if st.button("Logout", use_container_width=True, key="logout_btn"):
-        _sb_logout(st.session_state.get('sb_access_token', ''))
-        _clear_session_cookies()
-        for _k in ['sb_access_token', 'sb_refresh_token', 'sb_user_id', 'sb_user_email', 'journal_trades']:
-            st.session_state.pop(_k, None)
-        st.rerun()
-
-# --- Initialize sidebar variables (since sidebar is disabled) ---
-page = "📓 Journal" if st.session_state.page_nav == "journal" else "📊 Import Data"
+# Initialize variables
 ai_model = "Gemini 2.5 Flash (free)"  # Default model
 selected_export_bytes = None
 
