@@ -37,7 +37,7 @@ except ImportError:
 
 # --- Config ---
 st.set_page_config(
-    page_title="AI Trading Coach",
+    page_title="Hindsight Edge",
     page_icon="https://em-content.zobj.net/source/apple/391/chart-increasing_1f4c8.png",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -1102,7 +1102,7 @@ def compute_stats(trades):
 
 
 def build_ai_prompt(stats, trades):
-    """Build the prompt for the AI Trading Coach."""
+    """Build the prompt for Hindsight Edge."""
 
     # Load system prompt
     prompt_path = Path(__file__).parent / "trading_coach_prompt.md"
@@ -1825,7 +1825,7 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 
 # --- Login page ---
 def _show_auth_page():
-    st.markdown('<p class="hero-title">AI Trading Coach</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hero-title">Hindsight Edge</p>', unsafe_allow_html=True)
     st.markdown('<p class="hero-subtitle">Sign in to access your personal trading journal.</p>', unsafe_allow_html=True)
 
     st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
@@ -1921,7 +1921,7 @@ st.markdown(f"""
 st.markdown(f"""
 <div style="text-align: center; margin: 40px 0 60px 0;">
     <div style="font-family: 'Instrument Serif', serif; font-size: 4.5rem; font-weight: 500; color: {COLORS['text_bright']}; letter-spacing: -0.02em; margin-bottom: 12px;">
-        Trading Coach
+        Hindsight Edge
     </div>
     <div style="font-size: 1.2rem; color: {COLORS['text_dim']}; font-weight: 300; letter-spacing: 0.05em;">
         upload your trades
@@ -2036,7 +2036,7 @@ if False:  # Sidebar disabled
     st.markdown(f"""
     <div style="text-align: center; padding: 20px 0 10px;">
         <div style="font-size: 2rem; margin-bottom: 8px;">&#x1F4C8;</div>
-        <div style="font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.1em;">Trading Coach</div>
+        <div style="font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.1em;">Hindsight Edge</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2238,7 +2238,7 @@ if page == "📓 Journal":
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">AI Trading Coach</div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Hindsight Edge</div>
         <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your journal trades</div>
     </div>
     """, unsafe_allow_html=True)
@@ -2255,7 +2255,7 @@ if page == "📓 Journal":
             <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']};">Follow-up Questions</div>
         </div>
         <div style="font-size: 0.85rem; color: {COLORS['text_dim']}; margin-bottom: 16px;">
-            Ask the AI Coach anything about your analysis — e.g. "Why do I lose on Fridays?" or "Which pairs are my worst?"
+            Ask Hindsight Edge anything about your analysis — e.g. "Why do I lose on Fridays?" or "Which pairs are my worst?"
         </div>
         """, unsafe_allow_html=True)
 
@@ -2273,10 +2273,10 @@ if page == "📓 Journal":
                 st.markdown(msg['content'])
                 st.markdown('</div>', unsafe_allow_html=True)
 
-        user_question_j = st.chat_input("Ask the AI Coach about your journal...", key="j_coach_chat")
+        user_question_j = st.chat_input("Ask Hindsight Edge about your journal...", key="j_coach_chat")
         if user_question_j:
             st.session_state.chat_messages.append({'role': 'user', 'content': user_question_j})
-            chat_sys_j = f"""You are an AI Trading Coach analyzing journal trade data.
+            chat_sys_j = f"""You are Hindsight Edge, an AI assistant analyzing journal trade data.
 
 Trading data:
 {st.session_state.data_context}
@@ -2709,7 +2709,7 @@ elif page == "📊 Import Data":
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 10px; margin-top: 32px; margin-bottom: 24px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">AI Trading Coach</div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Hindsight Edge</div>
         <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your imported broker data</div>
     </div>
     """, unsafe_allow_html=True)
@@ -2759,10 +2759,10 @@ elif page == "📊 Import Data":
                 st.markdown(msg['content'])
                 st.markdown('</div>', unsafe_allow_html=True)
 
-        user_question_b = st.chat_input("Ask the AI Coach about your broker data...", key="b_coach_chat")
+        user_question_b = st.chat_input("Ask Hindsight Edge about your broker data...", key="b_coach_chat")
         if user_question_b:
             st.session_state.broker_chat_messages.append({'role': 'user', 'content': user_question_b})
-            chat_sys_b = f"""You are an AI Trading Coach analyzing broker trade data.
+            chat_sys_b = f"""You are Hindsight Edge, an AI assistant analyzing broker trade data.
 
 Trading data:
 {st.session_state.broker_data_context}
