@@ -1854,13 +1854,35 @@ _hero_col1, _hero_col2, _hero_col3 = st.columns([1, 3, 1], gap="large")
 
 with _hero_col2:
     st.markdown(f"""
-    <div style="text-align: center; padding: 120px 60px; background: linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(139,92,246,0.04) 50%, transparent 100%); border-radius: 32px; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 50%); animation: drift 20s ease-in-out infinite; pointer-events: none;"></div>
-        <div style="position: relative; z-index: 1;">
-            <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 32px;">
+    <div style="text-align: center; padding: 140px 80px; background: linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(139,92,246,0.1) 100%),
+        radial-gradient(ellipse 1200px 600px at center, rgba(6,182,212,0.08) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(10,14,23,0.7) 0%, rgba(10,14,23,0.85) 100%);
+        background-size: cover, cover, cover;
+        border-radius: 32px; position: relative; overflow: hidden; border: 1px solid rgba(6,182,212,0.2);">
+
+        <!-- Animated chart background lines -->
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.4; pointer-events: none;">
+            <svg style="width: 100%; height: 100%; position: absolute;" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="chartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color: {COLORS['accent_cyan']}; stop-opacity: 0.3"/>
+                        <stop offset="100%" style="stop-color: {COLORS['accent_purple']}; stop-opacity: 0.1"/>
+                    </linearGradient>
+                </defs>
+                <polyline points="0,80 10,70 20,75 30,60 40,65 50,50 60,55 70,40 80,45 90,30 100,35" style="fill: none; stroke: url(#chartGrad); stroke-width: 2; opacity: 0.6;"/>
+                <circle cx="20%" cy="40%" r="30" fill="none" stroke="{COLORS['accent_cyan']}" stroke-width="1" opacity="0.2" style="animation: pulse 4s ease-in-out infinite;"/>
+                <circle cx="70%" cy="60%" r="50" fill="none" stroke="{COLORS['accent_purple']}" stroke-width="1" opacity="0.15" style="animation: pulse 5s ease-in-out infinite; animation-delay: 1s;"/>
+            </svg>
+        </div>
+
+        <!-- Drifting gradient background -->
+        <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.12) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139,92,246,0.1) 0%, transparent 50%); animation: drift 25s ease-in-out infinite; pointer-events: none;"></div>
+
+        <div style="position: relative; z-index: 10;">
+            <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 32px; text-shadow: 0 0 30px rgba(6,182,212,0.2);">
                 Your Trading Intelligence Platform
             </div>
-            <div style="font-size: 1.15rem; color: {COLORS['text_dim']}; max-width: 700px; margin: 0 auto; line-height: 1.8; margin-bottom: 48px; font-weight: 300; letter-spacing: 0.3px;">
+            <div style="font-size: 1.15rem; color: {COLORS['text_dim']}; max-width: 750px; margin: 0 auto; line-height: 1.8; font-weight: 300; letter-spacing: 0.3px;">
                 Unlock data-driven insights into your trading patterns with AI-powered analysis and real-time portfolio tracking.
             </div>
         </div>
@@ -1868,7 +1890,11 @@ with _hero_col2:
     <style>
         @keyframes drift {{
             0%, 100% {{ transform: translate(0, 0); }}
-            50% {{ transform: translate(30px, -30px); }}
+            50% {{ transform: translate(40px, -40px); }}
+        }}
+        @keyframes pulse {{
+            0%, 100% {{ r: 30px; opacity: 0.2; }}
+            50% {{ r: 50px; opacity: 0.05; }}
         }}
     </style>
     """, unsafe_allow_html=True)
