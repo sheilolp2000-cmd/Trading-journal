@@ -1823,18 +1823,71 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 
 # --- Auth: session is stored in st.session_state (token-based, no SDK needed) ---
 
-# --- Login page ---
-def _show_auth_page():
-    st.markdown('<p class="hero-title">Hindsight Edge</p>', unsafe_allow_html=True)
-    st.markdown('<p class="hero-subtitle">Sign in to access your personal trading journal.</p>', unsafe_allow_html=True)
+# =====================================================
+# STARTUP TEMPLATE REDESIGN - Header + Hero (Always visible)
+# =====================================================
 
-    st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
-    _, _ac, _ = st.columns([1, 1, 1])
-    with _ac:
+# --- Clean Header Bar (always visible) ---
+st.markdown(f"""
+<div style="position: sticky; top: 0; z-index: 100; background: linear-gradient(to right, rgba(10,14,23,0.95), rgba(10,14,23,0.9)); border-bottom: 1px solid rgba(6,182,212,0.15); backdrop-filter: blur(10px); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; gap: 40px;">
+    <div style="font-family: 'Instrument Serif', serif; font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']}; letter-spacing: -0.02em;">
+        Hindsight Edge
+    </div>
+    <div style="flex: 1;"></div>
+</div>
+""", unsafe_allow_html=True)
+
+# Spacer after header
+st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+
+# --- Hero Section (visible to everyone) ---
+_hero_col1, _hero_col2, _hero_col3 = st.columns([1, 3, 1], gap="large")
+
+with _hero_col2:
+    st.markdown(f"""
+    <div style="text-align: center; padding: 80px 40px; background: radial-gradient(ellipse 800px 400px at center, rgba(6,182,212,0.08) 0%, transparent 70%); border-radius: 24px;">
+        <div style="font-family: 'Instrument Serif', serif; font-size: 3.8rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 20px;">
+            Your Trading Intelligence Platform
+        </div>
+        <div style="font-size: 1.1rem; color: {COLORS['text_dim']}; max-width: 650px; margin: 0 auto; line-height: 1.7; margin-bottom: 40px;">
+            Unlock data-driven insights into your trading patterns with AI-powered analysis and real-time portfolio tracking.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Spacer
+st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
+
+# --- Auth Check (after hero) ---
+_is_authenticated = _restore_session_from_cookies()
+
+if not _is_authenticated:
+    # Non-authenticated: Show CTA button that triggers login
+    _cta_col1, _cta_col2, _cta_col3 = st.columns([1, 1, 1])
+    with _cta_col2:
+        st.markdown(f"""
+        <div style="text-align: center;">
+            <button onclick="document.querySelector('[data-testid=\\'stButton\\']').click()" style="background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); color: white; border: none; padding: 16px 48px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; letter-spacing: -0.01em; transition: all 0.3s ease;">
+                Start Your Trading Journal
+            </button>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Centered login/signup section
+        st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="text-align: center; color: {COLORS['text_dim']}; font-size: 0.95rem;">
+            or sign in below
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+
         _lt, _st = st.tabs(["Login", "Sign Up"])
         with _lt:
+            st.markdown(f"<div style='font-size: 0.95rem; color: {COLORS['text_bright']}; font-weight: 600; margin-bottom: 16px;'>Login to Your Account</div>", unsafe_allow_html=True)
             _email = st.text_input("Email", key="login_email", placeholder="your@email.com")
-            _pw = st.text_input("Password", type="password", key="login_pw")
+            _pw = st.text_input("Password", type="password", key="login_pw", placeholder="••••••••")
             if st.button("Login", type="primary", use_container_width=True, key="login_btn"):
                 _data, _code = _sb_login(_email, _pw)
                 if _code == 200 and "access_token" in _data:
@@ -1848,8 +1901,9 @@ def _show_auth_page():
                     _msg = _data.get("error_description") or _data.get("msg") or str(_data)
                     st.error(f"Login failed: {_msg}")
         with _st:
+            st.markdown(f"<div style='font-size: 0.95rem; color: {COLORS['text_bright']}; font-weight: 600; margin-bottom: 16px;'>Create Your Account</div>", unsafe_allow_html=True)
             _email2 = st.text_input("Email", key="signup_email", placeholder="your@email.com")
-            _pw2 = st.text_input("Password (min 6 chars)", type="password", key="signup_pw")
+            _pw2 = st.text_input("Password (min 6 chars)", type="password", key="signup_pw", placeholder="••••••••")
             if st.button("Create Account", type="primary", use_container_width=True, key="signup_btn"):
                 if len(_pw2) < 6:
                     st.error("Password must be at least 6 characters.")
@@ -1865,11 +1919,9 @@ def _show_auth_page():
                         _msg2 = _data2.get("error_description") or _data2.get("msg") or str(_data2)
                         st.error(f"Sign up failed: {_msg2}")
 
-# --- Auth gate ---
-if not _restore_session_from_cookies():
-    _show_auth_page()
     st.stop()
 
+# --- Token validation (only if authenticated) ---
 if not _ensure_valid_token():
     st.warning("Session abgelaufen — bitte neu einloggen.")
     _clear_session_cookies()
@@ -1877,27 +1929,16 @@ if not _ensure_valid_token():
         st.session_state.pop(_k, None)
     st.rerun()
 
-# --- Header + Login Corner (only shown when logged in) ---
-# Top left Feedback + Top right Login info + Logout in columns
-_header_feedback, _header_center, _header_login = st.columns([0.25, 1, 0.3])
+# --- Dashboard Header (only shown when logged in) ---
+_user_email = st.session_state.get('sb_user_email', '')
+_header_left, _header_center, _header_right = st.columns([1, 1, 1])
 
-with _header_feedback:
+with _header_right:
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.08)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 12px 16px; backdrop-filter: blur(10px); text-align: center;">
-        <div style="font-size: 0.6rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">Feedback</div>
-        <div style="font-size: 0.8rem; color: {COLORS['accent_purple']}; font-weight: 600; word-break: break-all; line-height: 1.4;">
-            timmueller150800@gmail.com
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with _header_login:
-    _user_email = st.session_state.get('sb_user_email', '')
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 12px; padding: 10px 12px; backdrop-filter: blur(10px); text-align: center;">
-        <div style="font-size: 0.6rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">Logged in</div>
-        <div style="font-size: 0.75rem; color: {COLORS['accent_cyan']}; font-weight: 600; word-break: break-word; line-height: 1.3;">
-            {_html.escape(_user_email[:25])}{'...' if len(_user_email) > 25 else ''}
+    <div style="text-align: right;">
+        <div style="font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">Logged in as</div>
+        <div style="font-size: 0.9rem; color: {COLORS['accent_cyan']}; font-weight: 600; margin-bottom: 12px;">
+            {_html.escape(_user_email[:30])}{'...' if len(_user_email) > 30 else ''}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1908,26 +1949,7 @@ with _header_login:
             st.session_state.pop(_k, None)
         st.rerun()
 
-# Main tagline header
-st.markdown(f"""
-<div style="text-align: center; margin: 60px 0 40px 0;">
-    <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em; line-height: 1.1;">
-        IMPROVE YOUR TRADING, TRADING IN THE FUTURE
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Center subheader
-st.markdown(f"""
-<div style="text-align: center; margin: 40px 0 60px 0;">
-    <div style="font-family: 'Instrument Serif', serif; font-size: 4.5rem; font-weight: 500; color: {COLORS['text_bright']}; letter-spacing: -0.02em; margin-bottom: 12px;">
-        Hindsight Edge
-    </div>
-    <div style="font-size: 1.2rem; color: {COLORS['text_dim']}; font-weight: 300; letter-spacing: 0.05em;">
-        upload your trades
-    </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
 # --- Journal helpers (DB-backed) ---
 def load_journal():
@@ -2012,44 +2034,19 @@ if 'chat_messages' not in st.session_state:
 if 'data_context' not in st.session_state:
     st.session_state.data_context = None
 
-# --- Initialize page nav ---
+# --- Page Navigation with Tabs ---
 if 'page_nav' not in st.session_state:
     st.session_state.page_nav = "journal"
 
-# --- Large Navigation Cards with Cyan Accent ---
-nav_left, nav_center, nav_right = st.columns([1, 0.5, 1])
+page_idx = 0 if st.session_state.page_nav == "journal" else 1
+tab_journal, tab_import = st.tabs(["📓 Trading Journal", "📊 Import Data"])
 
-with nav_left:
-    if st.button("📓 JOURNAL\n\nCreate new trade entries", key="nav_journal_large", use_container_width=True, help="Log and analyze trades"):
-        st.session_state.page_nav = "journal"
-        st.rerun()
+st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
-with nav_right:
-    if st.button("📊 IMPORT DATA\n\nUpload broker exports", key="nav_import_large", use_container_width=True, help="Upload broker data"):
-        st.session_state.page_nav = "import_data"
-        st.rerun()
-
-st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
-
-# --- Sidebar (Completely hidden - all state managed in main area) ---
-if False:  # Sidebar disabled
-    st.markdown(f"""
-    <div style="text-align: center; padding: 20px 0 10px;">
-        <div style="font-size: 2rem; margin-bottom: 8px;">&#x1F4C8;</div>
-        <div style="font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.1em;">Hindsight Edge</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    # Hidden radio - still manages state but not displayed (oben ist die neue Navigation)
-    page_idx = 0 if st.session_state.page_nav == "journal" else 1
-    page = st.radio("Page", ["📓 Journal", "📊 Import Data"], index=page_idx, label_visibility="collapsed", key="sidebar_page")
-    st.session_state.page_nav = "journal" if page == "📓 Journal" else "import_data"
-
-    st.markdown("---")
-
-    _token = st.session_state.get('sb_access_token', '')
-    _uid = st.session_state.get('sb_user_id', '')
+# --- No sidebar (all state managed via tabs) ---
+# Tab state is handled by Streamlit automatically
+_token = st.session_state.get('sb_access_token', '')
+_uid = st.session_state.get('sb_user_id', '')
 
     if 'export_files' not in st.session_state:
         st.session_state.export_files = _sb_list_exports(_uid, _token)
@@ -2186,10 +2183,9 @@ if df is not None:
     stats = compute_stats(trades)
 
 # =====================================================
-# PAGE: JOURNAL
+# PAGE: JOURNAL (in tab)
 # =====================================================
-if page == "📓 Journal":
-
+with tab_journal:
     _jt_coach = st.session_state.journal_trades
     _jt_count = len(_jt_coach)
 
@@ -2626,10 +2622,9 @@ Answer follow-up questions directly and concretely using numbers from the data. 
 
 
 # =====================================================
-# PAGE: IMPORT DATA
+# PAGE: IMPORT DATA (in tab)
 # =====================================================
-elif page == "📊 Import Data":
-
+with tab_import:
     if 'broker_analysis_result' not in st.session_state:
         st.session_state.broker_analysis_result = None
     if 'broker_chat_messages' not in st.session_state:
