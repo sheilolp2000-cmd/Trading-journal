@@ -1829,17 +1829,19 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 
 # --- Clean Header Bar (always visible) ---
 st.markdown(f"""
-<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 1px solid rgba(6,182,212,0.12); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; gap: 40px; height: 70px;">
-    <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; color: {COLORS['text_bright']}; letter-spacing: -0.02em;">
+<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 1px solid rgba(6,182,212,0.12); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
+    <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; color: {COLORS['text_bright']}; letter-spacing: -0.02em; min-width: 200px;">
         Hindsight Edge
     </div>
-    <div style="flex: 1;"></div>
-    <div style="display: flex; gap: 12px; align-items: center;">
-        <a href="#" onclick="document.querySelector('[data-testid=\\'stButton\\']')?.focus(); return false;" style="color: {COLORS['text_dim']}; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s; cursor: pointer;">
+    <div style="flex: 1; text-align: center;">
+        <div style="font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px;">Feedback</div>
+        <div style="font-size: 0.9rem; color: {COLORS['accent_purple']}; font-weight: 600;">timmueller150800@gmail.com</div>
+    </div>
+    <div style="display: flex; gap: 16px; align-items: center; min-width: 200px; justify-content: flex-end;">
+        <a href="#" onclick="document.querySelector('[data-testid=\\'stButton\\']')?.focus(); return false;" style="color: {COLORS['text_dim']}; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; cursor: pointer; padding: 6px 12px;">
             Log in
         </a>
-        <div style="width: 1px; height: 20px; background: rgba(6,182,212,0.2);"></div>
-        <a href="#" onclick="document.querySelectorAll('[data-testid=\\'stButton\\']')[1]?.focus(); return false;" style="color: {COLORS['accent_cyan']}; text-decoration: none; font-size: 0.95rem; font-weight: 600; transition: all 0.2s; cursor: pointer;">
+        <a href="#" onclick="document.querySelectorAll('[data-testid=\\'stButton\\']')[1]?.focus(); return false;" style="color: {COLORS['accent_cyan']}; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; cursor: pointer; padding: 6px 12px;">
             Sign up
         </a>
     </div>
@@ -1855,8 +1857,8 @@ with _hero_col2:
     <div style="text-align: center; padding: 120px 60px; background: linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(139,92,246,0.04) 50%, transparent 100%); border-radius: 32px; position: relative; overflow: hidden;">
         <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 50%); animation: drift 20s ease-in-out infinite; pointer-events: none;"></div>
         <div style="position: relative; z-index: 1;">
-            <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 32px; word-spacing: 9999px;">
-                Your Trading<br>Intelligence Platform
+            <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 32px;">
+                Your Trading Intelligence Platform
             </div>
             <div style="font-size: 1.15rem; color: {COLORS['text_dim']}; max-width: 700px; margin: 0 auto; line-height: 1.8; margin-bottom: 48px; font-weight: 300; letter-spacing: 0.3px;">
                 Unlock data-driven insights into your trading patterns with AI-powered analysis and real-time portfolio tracking.
@@ -2116,8 +2118,16 @@ with tab_journal:
     _jt_coach = st.session_state.journal_trades
     _jt_count = len(_jt_coach)
 
+    # Header: Hindsight Edge title
     st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+    <div style="font-family: 'Instrument Serif', serif; font-size: 3.2rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px;">
+        Hindsight Edge
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Sub-header: Trading Journal
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 32px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
         <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Trading Journal</div>
     </div>
