@@ -1854,23 +1854,68 @@ _hero_col1, _hero_col2, _hero_col3 = st.columns([1, 3, 1], gap="large")
 
 with _hero_col2:
     hero_html = f"""
-    <div style="text-align: center; padding: 140px 80px; background: linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(139,92,246,0.1) 100%), linear-gradient(180deg, rgba(10,14,23,0.7) 0%, rgba(10,14,23,0.85) 100%); border-radius: 32px; position: relative; overflow: hidden; border: 1px solid rgba(6,182,212,0.2);">
-        <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.12) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139,92,246,0.1) 0%, transparent 50%); animation: drift 25s ease-in-out infinite; pointer-events: none;"></div>
-        <div style="position: relative; z-index: 10;">
-            <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 32px;">
-                Your Trading Intelligence Platform
-            </div>
-            <div style="font-size: 1.15rem; color: {COLORS['text_dim']}; max-width: 750px; margin: 0 auto; line-height: 1.8; font-weight: 300; letter-spacing: 0.3px;">
-                Unlock data-driven insights into your trading patterns with AI-powered analysis and real-time portfolio tracking.
+    <div class="hero-3d-container" style="perspective: 1000px; width: 100%; min-height: 400px;">
+        <div id="heroCard" class="hero-card" style="text-align: center; padding: 140px 80px; background: linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(139,92,246,0.1) 100%), linear-gradient(180deg, rgba(10,14,23,0.7) 0%, rgba(10,14,23,0.85) 100%); border-radius: 32px; position: relative; overflow: hidden; border: 1px solid rgba(6,182,212,0.2); transition: transform 0.3s ease-out; transform-style: preserve-3d;">
+            <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.12) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139,92,246,0.1) 0%, transparent 50%); animation: drift 25s ease-in-out infinite; pointer-events: none;"></div>
+            <div style="position: relative; z-index: 10;">
+                <div style="font-family: 'Instrument Serif', serif; font-size: 5.5rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 32px;">
+                    Your Trading Intelligence Platform
+                </div>
+                <div style="font-size: 1.15rem; color: {COLORS['text_dim']}; max-width: 750px; margin: 0 auto; line-height: 1.8; font-weight: 300; letter-spacing: 0.3px;">
+                    Unlock data-driven insights into your trading patterns with AI-powered analysis and real-time portfolio tracking.
+                </div>
             </div>
         </div>
     </div>
+
     <style>
         @keyframes drift {{
             0%, 100% {{ transform: translate(0, 0); }}
             50% {{ transform: translate(40px, -40px); }}
         }}
+
+        .hero-3d-container {{
+            perspective: 1000px;
+        }}
+
+        .hero-card {{
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.320, 1) !important;
+            transform-style: preserve-3d !important;
+            will-change: transform;
+        }}
+
+        .hero-card:hover {{
+            transform: rotateX(5deg) rotateY(-8deg) translateZ(20px) !important;
+            box-shadow: 0 20px 60px rgba(6, 182, 212, 0.3) !important;
+        }}
     </style>
+
+    <script>
+        const heroCard = document.getElementById('heroCard');
+        const container = document.querySelector('.hero-3d-container');
+
+        if (heroCard && container) {{
+            container.addEventListener('mousemove', (e) => {{
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                const rotateX = (y - centerY) / 10;
+                const rotateY = -(x - centerX) / 10;
+
+                heroCard.style.transform = `rotateX(${{rotateX}}deg) rotateY(${{rotateY}}deg) translateZ(30px)`;
+                heroCard.style.boxShadow = `0 30px 80px rgba(6, 182, 212, ${{0.2 + Math.abs(rotateX) * 0.02}})`;
+            }});
+
+            container.addEventListener('mouseleave', () => {{
+                heroCard.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
+                heroCard.style.boxShadow = '0 10px 30px rgba(6, 182, 212, 0.1)';
+            }});
+        }}
+    </script>
     """
     st.markdown(hero_html, unsafe_allow_html=True)
 
