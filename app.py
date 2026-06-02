@@ -2202,7 +2202,45 @@ if 'data_context' not in st.session_state:
 if 'page_nav' not in st.session_state:
     st.session_state.page_nav = "journal"
 
-# --- Large Navigation Buttons (instead of tabs) ---
+# --- Large Navigation Buttons with Gradient (instead of tabs) ---
+_current_page = st.session_state.get('page_nav', 'journal')
+
+# Inject CSS to style the buttons with larger font and gradient
+st.markdown(f"""
+<style>
+/* Make Streamlit buttons larger and gradient-styled */
+div[data-testid="stButton"] > button {{
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    padding: 20px 16px !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+    letter-spacing: -0.01em !important;
+}}
+
+div[data-testid="stButton"] > button:hover {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35) !important;
+}}
+
+/* Journal button gradient */
+div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton"] > button {{
+    background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}) !important;
+    border: 2px solid {COLORS['accent_cyan']} !important;
+    color: {COLORS['text_bright']} !important;
+}}
+
+/* Import button gradient */
+div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"] > button {{
+    background: linear-gradient(135deg, {COLORS['accent_purple']}, {COLORS['accent_cyan']}) !important;
+    border: 2px solid {COLORS['accent_purple']} !important;
+    color: {COLORS['text_bright']} !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+# --- Large Navigation Buttons (styled via CSS above) ---
 _btn_col1, _btn_col2 = st.columns([1, 1], gap="small")
 
 with _btn_col1:
