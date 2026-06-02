@@ -2801,12 +2801,3 @@ Answer follow-up questions directly and concretely using numbers from the data. 
         _b_trades['asset'] = _b_trades['asset'] if 'asset' in _b_trades.columns else 'Unknown'
         _b_trades['is_win'] = _b_trades['pnl'] > 0
         render_analytics(_b_trades[['date','pnl','asset','is_win']], stats, tab_prefix='broker')
-
-                elif sel_b and sel_b != "Select..." and sel_b in prev_b_opts:
-                    loaded_b = prev_b_opts[sel_b].read_text(encoding='utf-8')
-                    if st.session_state.broker_analysis_result != loaded_b:
-                        st.session_state.broker_analysis_result = loaded_b
-                        _, dp_b = build_ai_prompt(stats, trades)
-                        st.session_state.broker_data_context = dp_b
-                        st.session_state.broker_chat_messages = []
-                        st.rerun()
