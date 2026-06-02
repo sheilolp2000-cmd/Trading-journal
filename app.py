@@ -2158,11 +2158,12 @@ if st.session_state.page_nav == "journal":
     _jt_coach = st.session_state.journal_trades
     _jt_count = len(_jt_coach)
 
-    # Sub-header: Trading Journal
+    # Hindsight Edge Header (moved to top)
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 32px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Trading Journal</div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Hindsight Edge</div>
+        <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your journal trades</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2198,14 +2199,13 @@ if st.session_state.page_nav == "journal":
             st.rerun()
 
     # =====================================================
-    # AI COACH (inline, directly after Start Analysis button)
+    # TRADING JOURNAL SUB-HEADER
     # =====================================================
     st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Hindsight Edge</div>
-        <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your journal trades</div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Trading Journal</div>
     </div>
     """, unsafe_allow_html=True)
 
