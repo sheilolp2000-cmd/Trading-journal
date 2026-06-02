@@ -2235,17 +2235,28 @@ st.markdown(f"""
 }}
 
 /* Journal button gradient */
+/* Journal button gradient with large font */
 div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton"] > button {{
     background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}) !important;
     border: 2px solid {COLORS['accent_cyan']} !important;
     color: {COLORS['text_bright']} !important;
 }}
 
-/* Import button gradient */
+div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton"] > button * {{
+    font-size: 4rem !important;
+    font-weight: 700 !important;
+}}
+
+/* Import button gradient with large font */
 div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"] > button {{
     background: linear-gradient(135deg, {COLORS['accent_purple']}, {COLORS['accent_cyan']}) !important;
     border: 2px solid {COLORS['accent_purple']} !important;
     color: {COLORS['text_bright']} !important;
+}}
+
+div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"] > button * {{
+    font-size: 4rem !important;
+    font-weight: 700 !important;
 }}
 </style>
 """, unsafe_allow_html=True)
