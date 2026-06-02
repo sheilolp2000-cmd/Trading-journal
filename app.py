@@ -1832,53 +1832,29 @@ _is_authenticated_header = _restore_session_from_cookies()
 _user_email = st.session_state.get("sb_user_email", "")
 
 # --- Clean Header Bar (always visible) ---
+st.markdown(f"""
+<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 2px solid rgba(6,182,212,0.2); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
+    <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
+        Hindsight Edge
+    </div>
+    <div style="display: flex; gap: 16px; align-items: center; justify-content: flex-end;">
+        {"" if not (_is_authenticated_header and _user_email) else f'<div style="color: {COLORS["text_dim"]}; font-size: 0.85rem;">Logged in as <span style="color: {COLORS["accent_cyan"]}; font-weight: 600;">{_user_email}</span></div>'}
+        {"" if not (_is_authenticated_header and _user_email) else f'<div style="width: 1px; height: 20px; background: rgba(6,182,212,0.3);"></div>'}
+    </div>
+</div>
+<div style="height: 70px;"></div>
+""", unsafe_allow_html=True)
+
+# --- Logout/Login button area (positioned top-right, outside of fixed header HTML) ---
 if _is_authenticated_header and _user_email:
-    # Authenticated: Show Logo | Email + Logout Button (in header)
-    header_html = f"""
-    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 2px solid rgba(6,182,212,0.2); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
-        <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
-            Hindsight Edge
-        </div>
-        <div style="display: flex; gap: 16px; align-items: center; justify-content: flex-end;">
-            <div style="color: {COLORS['text_dim']}; font-size: 0.85rem;">Logged in as <span style="color: {COLORS['accent_cyan']}; font-weight: 600; font-size: 0.9rem;">{_user_email}</span></div>
-            <div style="width: 1px; height: 20px; background: rgba(6,182,212,0.3);"></div>
-            <button id="logout-btn" style="background: transparent; border: 1px solid {COLORS['accent_cyan']}; color: {COLORS['text_dim']}; padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">
-                Logout
-            </button>
-        </div>
-
-        <script>
-            document.getElementById('logout-btn').addEventListener('click', function() {{
-                // Find and click the hidden logout button from Streamlit
-                const buttons = document.querySelectorAll('[data-testid="stButton"]');
-                if (buttons.length > 0) {{
-                    buttons[0].click();
-                }}
-            }});
-        </script>
-    </div>
-    <div style="height: 70px;"></div>
-    """
-else:
-    # Not authenticated: Show Logo | Login + Signup
-    header_html = f"""
-    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 2px solid rgba(6,182,212,0.2); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
-        <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
-            Hindsight Edge
-        </div>
-        <div style="display: flex; gap: 12px; align-items: center;">
-            <button onclick="document.querySelector('[data-testid=\\'stButton\\']')?.click();" style="background: transparent; border: 1px solid {COLORS['accent_cyan']}; color: {COLORS['accent_cyan']}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">
-                Log in
-            </button>
-            <button onclick="document.querySelectorAll('[data-testid=\\'stButton\\']')[1]?.click();" style="background: {COLORS['accent_cyan']}; border: none; color: {COLORS['bg_dark']}; padding: 8px 18px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                Sign up
-            </button>
-        </div>
-    </div>
-    <div style="height: 70px;"></div>
-    """
-
-st.markdown(header_html, unsafe_allow_html=True)
+    _header_spacer1, _header_spacer2, _logout_col = st.columns([1, 10, 1.2])
+    with _logout_col:
+        st.markdown(f"<div style='margin-top: -65px; text-align: right;'>", unsafe_allow_html=True)
+        if st.button("Logout", key="logout_btn", use_container_width=True):
+            st.session_state.clear()
+            _clear_session_cookies()
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Hero Section (visible to everyone) ---
 _hero_col1, _hero_col2, _hero_col3 = st.columns([1, 3, 1], gap="large")
