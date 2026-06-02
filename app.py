@@ -1827,27 +1827,45 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 # STARTUP TEMPLATE REDESIGN - Header + Hero (Always visible)
 # =====================================================
 
+# --- Check if authenticated (before rendering header) ---
+_is_authenticated_header = _restore_session_from_cookies()
+_user_email = st.session_state.get("user_email", "")
+
 # --- Clean Header Bar (always visible) ---
-st.markdown(f"""
-<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 1px solid rgba(6,182,212,0.12); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
-    <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; color: {COLORS['text_bright']}; letter-spacing: -0.02em; min-width: 200px;">
-        Hindsight Edge
+if _is_authenticated_header:
+    # Authenticated: Show Logo | Logout + Email
+    header_html = f"""
+    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 2px solid rgba(6,182,212,0.2); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
+        <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
+            Hindsight Edge
+        </div>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <div style="color: {COLORS['text_dim']}; font-size: 0.9rem;">Logged in as <span style="color: {COLORS['accent_cyan']}; font-weight: 600;">{_user_email}</span></div>
+            <div style="width: 1px; height: 24px; background: rgba(6,182,212,0.3);"></div>
+        </div>
     </div>
-    <div style="flex: 1; text-align: center;">
-        <div style="font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px;">Feedback</div>
-        <div style="font-size: 0.9rem; color: {COLORS['accent_purple']}; font-weight: 600;">timmueller150800@gmail.com</div>
+    <div style="height: 70px;"></div>
+    """
+else:
+    # Not authenticated: Show Logo | Login + Signup
+    header_html = f"""
+    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 2px solid rgba(6,182,212,0.2); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
+        <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
+            Hindsight Edge
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button onclick="document.querySelector('[data-testid=\\'stButton\\']')?.click();" style="background: transparent; border: 1px solid {COLORS['accent_cyan']}; color: {COLORS['accent_cyan']}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                Log in
+            </button>
+            <button onclick="document.querySelectorAll('[data-testid=\\'stButton\\']')[1]?.click();" style="background: {COLORS['accent_cyan']}; border: none; color: {COLORS['bg_dark']}; padding: 8px 18px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                Sign up
+            </button>
+        </div>
     </div>
-    <div style="display: flex; gap: 16px; align-items: center; min-width: 200px; justify-content: flex-end;">
-        <a href="#" onclick="document.querySelector('[data-testid=\\'stButton\\']')?.focus(); return false;" style="color: {COLORS['text_dim']}; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; cursor: pointer; padding: 6px 12px;">
-            Log in
-        </a>
-        <a href="#" onclick="document.querySelectorAll('[data-testid=\\'stButton\\']')[1]?.focus(); return false;" style="color: {COLORS['accent_cyan']}; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; cursor: pointer; padding: 6px 12px;">
-            Sign up
-        </a>
-    </div>
-</div>
-<div style="height: 70px;"></div>
-""", unsafe_allow_html=True)
+    <div style="height: 70px;"></div>
+    """
+
+st.markdown(header_html, unsafe_allow_html=True)
 
 # --- Hero Section (visible to everyone) ---
 _hero_col1, _hero_col2, _hero_col3 = st.columns([1, 3, 1], gap="large")
