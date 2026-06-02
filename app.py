@@ -2842,6 +2842,16 @@ if st.session_state.page_nav == "import":
     """, unsafe_allow_html=True)
 
     # --- Upload Section ---
+    # Centered Start Analysis button (at top, same as Trading Journal)
+    st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
+    _b_btn_col_top = st.columns([1, 2, 1])
+    with _b_btn_col_top[1]:
+        start_b_analysis = st.button("⚡ Start Analysis", type="primary", use_container_width=True,
+                                     key="b_coach_btn_top", disabled=(df is None))
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+
     st.markdown(f"<div style='font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>📤 Upload Broker Export</div>", unsafe_allow_html=True)
 
     _token = st.session_state.get('sb_access_token', '')
@@ -2893,16 +2903,6 @@ if st.session_state.page_nav == "import":
         selected_name = st.selectbox("Select Dataset", file_names, index=default_idx, key="export_select_main", label_visibility="collapsed")
         st.session_state.selected_export = selected_name
 
-    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
-
-    # Centered Start Analysis button
-    st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
-    _b_btn_col = st.columns([1, 2, 1])
-    with _b_btn_col[1]:
-        start_b_analysis = st.button("⚡ Start Analysis", type="primary", use_container_width=True,
-                                     key="b_coach_btn", disabled=(df is None))
-    st.markdown('</div>', unsafe_allow_html=True)
-
     # --- Previous Broker Analyses (moved to top) ---
     st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
     if df is not None:
@@ -2938,15 +2938,6 @@ if st.session_state.page_nav == "import":
                         if st.button("Cancel", key="b_confirm_no"):
                             st.session_state.pop("b_confirm_delete", None)
                             st.rerun()
-
-    # --- Broker AI Coach (directly after button) ---
-    st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 10px; margin-top: 32px; margin-bottom: 24px;">
-        <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
-        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Hindsight Edge</div>
-        <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— analyzes your imported broker data</div>
-    </div>
-    """, unsafe_allow_html=True)
 
     if df is None:
         st.info("📤 Load your broker export above to enable the AI Coach.")
