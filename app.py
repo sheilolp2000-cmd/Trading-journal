@@ -2869,6 +2869,28 @@ if st.session_state.page_nav == "import":
                                      key="b_coach_btn_top", disabled=(df is None))
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # JavaScript to make Import Data Start Analysis button larger
+    st.markdown(f"""
+    <script>
+    setTimeout(function() {{
+        // Find button with b_coach_btn_top key and increase font size
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {{
+            if (btn.getAttribute('data-testid') === 'stButton' && btn.textContent.includes('Start Analysis')) {{
+                const checkIfImportButton = btn.closest('.start-analysis-btn-import');
+                if (checkIfImportButton) {{
+                    const spans = btn.querySelectorAll('span, div');
+                    spans.forEach(span => {{
+                        span.style.fontSize = '3.5rem !important';
+                        span.style.fontWeight = '700 !important';
+                    }});
+                }}
+            }}
+        }});
+    }}, 100);
+    </script>
+    """, unsafe_allow_html=True)
+
     st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
 
     st.markdown(f"<div style='font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>📤 Upload Broker Export</div>", unsafe_allow_html=True)
