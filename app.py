@@ -2834,11 +2834,11 @@ if st.session_state.page_nav == "import":
         st.session_state.broker_data_context = None
 
     st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
         <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Import Data</div>
+        <div style="font-size: 0.85rem; color: {COLORS['text_dim']}; margin-left: 8px;">— Analytics and Hindsight Edge powered by your broker export (Bitget, etc.)</div>
     </div>
-    <div style="font-size: 0.85rem; color: {COLORS['text_dim']}; margin-bottom: 24px;">Analytics and AI Coach powered by your broker export (Bitget, etc.)</div>
     """, unsafe_allow_html=True)
 
     # --- Upload Section ---
