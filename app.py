@@ -2210,7 +2210,7 @@ st.markdown(f"""
 <style>
 /* Make Streamlit buttons larger and gradient-styled */
 div[data-testid="stButton"] > button {{
-    font-size: 1.2rem !important;
+    font-size: 1.5rem !important;
     font-weight: 700 !important;
     padding: 20px 16px !important;
     border-radius: 12px !important;
