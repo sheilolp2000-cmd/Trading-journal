@@ -1984,7 +1984,7 @@ with _hero_col2:
         <div id="heroCard" class="hero-card" style="text-align: center; padding: 140px 80px; background: linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(139,92,246,0.1) 100%), linear-gradient(180deg, rgba(10,14,23,0.7) 0%, rgba(10,14,23,0.85) 100%); border-radius: 32px; position: relative; overflow: hidden; border: 1px solid rgba(6,182,212,0.2); transition: transform 0.3s ease-out; transform-style: preserve-3d;">
             <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139,92,246,0.06) 0%, transparent 50%); animation: drift 25s ease-in-out infinite; pointer-events: none;"></div>
             <div style="position: relative; z-index: 10;">
-                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif; font-size: 5.5rem; font-weight: 600; color: #ffffff; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 32px; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);">
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif; font-size: 7rem; font-weight: 600; color: #ffffff; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 32px; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);">
                     Your Trading Intelligence Platform
                 </div>
                 <div style="font-size: 1.15rem; color: rgba(255, 255, 255, 0.85); max-width: 750px; margin: 0 auto; line-height: 1.8; font-weight: 300; letter-spacing: 0.3px; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);">
@@ -2243,7 +2243,7 @@ div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton
 }}
 
 div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton"] > button * {{
-    font-size: 4rem !important;
+    font-size: 3rem !important;
     font-weight: 700 !important;
 }}
 
@@ -2255,7 +2255,7 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 }}
 
 div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"] > button * {{
-    font-size: 4rem !important;
+    font-size: 3rem !important;
     font-weight: 700 !important;
 }}
 </style>
