@@ -2244,7 +2244,7 @@ st.markdown(f"""
 }}
 
 .start-analysis-btn-import div[data-testid="stButton"] > button * {{
-    font-size: 3.5rem !important;
+    font-size: 2.5rem !important;
     font-weight: 700 !important;
 }}
 
