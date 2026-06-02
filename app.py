@@ -61,20 +61,73 @@ if _COOKIES_AVAILABLE:
 else:
     _cookie_mgr = None
 
-def _save_session_cookies(access_token, refresh_token, user_id, user_email):
-    """Save session to browser (cookies + localStorage for 24 hours)"""
-    if _cookie_mgr is None:
-        return
+# Initialize session restoration on every page load (before UI rendering)
+def _init_session_from_storage():
+    """Restore session from browser localStorage on every page load using query params"""
+    if 'sb_access_token' in st.session_state:
+        return  # Already authenticated
+
+    # Check if we have session data in query params (from localStorage redirect)
     try:
-        expires_at = datetime.now() + timedelta(hours=24)
-        _cookie_mgr.set("tcj_access_token", access_token, key="set_at", expires_at=expires_at)
-        _cookie_mgr.set("tcj_refresh_token", refresh_token, key="set_rt", expires_at=expires_at)
-        _cookie_mgr.set("tcj_user_id", user_id, key="set_uid", expires_at=expires_at)
-        _cookie_mgr.set("tcj_user_email", user_email, key="set_em", expires_at=expires_at)
-    except Exception:
+        if 'tcj_token' in st.query_params and 'tcj_uid' in st.query_params:
+            token = st.query_params.get('tcj_token', '')
+            uid = st.query_params.get('tcj_uid', '')
+            email = st.query_params.get('tcj_email', '')
+            refresh = st.query_params.get('tcj_refresh', '')
+
+            if token and uid:
+                st.session_state.sb_access_token = token
+                st.session_state.sb_refresh_token = refresh
+                st.session_state.sb_user_id = uid
+                st.session_state.sb_user_email = email
+                return True
+    except:
         pass
 
-    # Also save to localStorage (persists until manually cleared, survives browser refresh)
+    # Inject JavaScript to check localStorage and redirect with query params (only if not already set)
+    st.markdown("""
+    <script>
+    (function() {
+        const params = new URLSearchParams(window.location.search);
+        // Only check localStorage if we don't already have session params (avoid redirect loop)
+        if (!params.has('tcj_token')) {
+            const session = localStorage.getItem('tcj_session');
+            if (session) {
+                try {
+                    const data = JSON.parse(atob(session));
+                    if (data.access_token && data.user_id) {
+                        const saved = new Date(data.saved_at);
+                        const now = new Date();
+                        const hours = (now - saved) / (1000 * 60 * 60);
+
+                        if (hours < 24) {
+                            // Session is valid and less than 24 hours old
+                            params.set('tcj_token', data.access_token);
+                            params.set('tcj_uid', data.user_id);
+                            params.set('tcj_email', data.user_email);
+                            params.set('tcj_refresh', data.refresh_token);
+                            window.location.search = params.toString();
+                            console.log('✅ Restoring session from localStorage...');
+                        } else {
+                            // Session expired, clear it
+                            localStorage.removeItem('tcj_session');
+                            console.log('⏰ Session expired (24+ hours old)');
+                        }
+                    }
+                } catch(e) {
+                    console.log('Error parsing localStorage session:', e);
+                }
+            }
+        }
+    })();
+    </script>
+    """, unsafe_allow_html=True)
+
+# Call this at the very start
+_init_session_from_storage()
+
+def _save_session_cookies(access_token, refresh_token, user_id, user_email):
+    """Save session to browser localStorage for 24 hours (survives refresh)"""
     data = {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -88,13 +141,40 @@ def _save_session_cookies(access_token, refresh_token, user_id, user_email):
         st.markdown(f"""
         <script>
         localStorage.setItem('tcj_session', '{encoded}');
-        console.log('Session saved to localStorage (24+ hours)');
+        window.tcj_session_data = {json.dumps(data)};
+        console.log('✅ Session saved to localStorage (24-hour persistence)');
         </script>
         """, unsafe_allow_html=True)
     except Exception:
         pass
 
+    # Also try cookies as backup
+    if _cookie_mgr is not None:
+        try:
+            expires_at = datetime.now() + timedelta(hours=24)
+            _cookie_mgr.set("tcj_access_token", access_token, key="set_at", expires_at=expires_at)
+            _cookie_mgr.set("tcj_refresh_token", refresh_token, key="set_rt", expires_at=expires_at)
+            _cookie_mgr.set("tcj_user_id", user_id, key="set_uid", expires_at=expires_at)
+            _cookie_mgr.set("tcj_user_email", user_email, key="set_em", expires_at=expires_at)
+        except Exception:
+            pass
+
 def _clear_session_cookies():
+    """Clear session from localStorage, cookies, and query params"""
+    st.markdown("""
+    <script>
+    localStorage.removeItem('tcj_session');
+    delete window.tcj_session_data;
+    const params = new URLSearchParams(window.location.search);
+    params.delete('tcj_token');
+    params.delete('tcj_uid');
+    params.delete('tcj_email');
+    params.delete('tcj_refresh');
+    window.location.search = params.toString();
+    console.log('✅ Session cleared from all storage');
+    </script>
+    """, unsafe_allow_html=True)
+
     if _cookie_mgr is None:
         return
     for name, key in [("tcj_access_token","del_at"),("tcj_refresh_token","del_rt"),("tcj_user_id","del_uid"),("tcj_user_email","del_em")]:
@@ -108,7 +188,7 @@ def _restore_session_from_cookies():
     if 'sb_access_token' in st.session_state:
         return True
 
-    # Try to restore from extra-streamlit-components cookies (persistent in browser)
+    # Try to restore from cookies first
     if _cookie_mgr is not None:
         try:
             cookies = _cookie_mgr.get_all()
