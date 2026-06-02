@@ -2670,6 +2670,43 @@ if st.session_state.page_nav == "import":
         start_b_analysis = st.button("Start Analysis", type="primary", use_container_width=True,
                                      key="b_coach_btn", disabled=(df is None))
 
+    # --- Previous Broker Analyses (moved to top) ---
+    st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
+    if df is not None:
+        analyses_dir_b = Path(__file__).parent / "analyses"
+        if analyses_dir_b.exists():
+            prev_b = sorted(analyses_dir_b.glob("broker_analysis_*.md"), reverse=True)
+            if prev_b:
+                st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>Previous Broker Analyses</div>", unsafe_allow_html=True)
+                def _fmt_broker_name(stem):
+                    s = stem.replace("broker_analysis_", "")
+                    try:
+                        dt = datetime.strptime(s, "%Y-%m-%d_%H-%M")
+                        return dt.strftime("%Y.%m.%d %H:%M Uhr")
+                    except Exception:
+                        return s.replace("_", " ")
+                _active_file = st.session_state.get('selected_export', 'Data Upload')
+                prev_b_opts = {f"{_fmt_broker_name(f.stem)} ({_active_file})": f for f in prev_b[:10]}
+                _bsel_col, _bdel_col = st.columns([5, 1])
+                with _bsel_col:
+                    sel_b = st.selectbox("Select", options=["Select..."] + list(prev_b_opts.keys()), index=0, label_visibility="collapsed", key="b_analysis_selector")
+                with _bdel_col:
+                    if sel_b and sel_b != "Select...":
+                        if st.button("🗑", key="b_del_analysis", help="Delete this analysis"):
+                            st.session_state.b_confirm_delete = sel_b
+                if st.session_state.get("b_confirm_delete") == sel_b and sel_b and sel_b != "Select...":
+                    st.warning(f"Delete **{sel_b}**? This cannot be undone.")
+                    _cb1, _cb2 = st.columns(2)
+                    with _cb1:
+                        if st.button("Yes, delete", key="b_confirm_yes", type="primary"):
+                            prev_b_opts[sel_b].unlink()
+                            st.session_state.pop("b_confirm_delete", None)
+                            st.rerun()
+                    with _cb2:
+                        if st.button("Cancel", key="b_confirm_no"):
+                            st.session_state.pop("b_confirm_delete", None)
+                            st.rerun()
+
     # --- Broker AI Coach (directly after button) ---
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 10px; margin-top: 32px; margin-bottom: 24px;">
@@ -2765,41 +2802,6 @@ Answer follow-up questions directly and concretely using numbers from the data. 
         _b_trades['is_win'] = _b_trades['pnl'] > 0
         render_analytics(_b_trades[['date','pnl','asset','is_win']], stats, tab_prefix='broker')
 
-    if df is not None:
-        analyses_dir_b = Path(__file__).parent / "analyses"
-        if analyses_dir_b.exists():
-            prev_b = sorted(analyses_dir_b.glob("broker_analysis_*.md"), reverse=True)
-            if prev_b:
-                st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
-                st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>Previous Broker Analyses</div>", unsafe_allow_html=True)
-                def _fmt_broker_name(stem):
-                    s = stem.replace("broker_analysis_", "")
-                    try:
-                        dt = datetime.strptime(s, "%Y-%m-%d_%H-%M")
-                        return dt.strftime("%Y.%m.%d %H:%M Uhr")
-                    except Exception:
-                        return s.replace("_", " ")
-                _active_file = st.session_state.get('selected_export', 'Data Upload')
-                prev_b_opts = {f"{_fmt_broker_name(f.stem)} ({_active_file})": f for f in prev_b[:10]}
-                _bsel_col, _bdel_col = st.columns([5, 1])
-                with _bsel_col:
-                    sel_b = st.selectbox("Select", options=["Select..."] + list(prev_b_opts.keys()), index=0, label_visibility="collapsed", key="b_analysis_selector")
-                with _bdel_col:
-                    if sel_b and sel_b != "Select...":
-                        if st.button("🗑", key="b_del_analysis", help="Delete this analysis"):
-                            st.session_state.b_confirm_delete = sel_b
-                if st.session_state.get("b_confirm_delete") == sel_b and sel_b and sel_b != "Select...":
-                    st.warning(f"Delete **{sel_b}**? This cannot be undone.")
-                    _cb1, _cb2 = st.columns(2)
-                    with _cb1:
-                        if st.button("Yes, delete", key="b_confirm_yes", type="primary"):
-                            prev_b_opts[sel_b].unlink()
-                            st.session_state.pop("b_confirm_delete", None)
-                            st.rerun()
-                    with _cb2:
-                        if st.button("Cancel", key="b_confirm_no"):
-                            st.session_state.pop("b_confirm_delete", None)
-                            st.rerun()
                 elif sel_b and sel_b != "Select..." and sel_b in prev_b_opts:
                     loaded_b = prev_b_opts[sel_b].read_text(encoding='utf-8')
                     if st.session_state.broker_analysis_result != loaded_b:
