@@ -706,15 +706,7 @@ st.markdown("""
         transform: translateY(-1px);
     }}
 
-    /* All buttons - cyan to purple gradient by default */
-    [data-testid="stButton"] button,
-    [role="button"],
-    button {{
-        background: linear-gradient(135deg, #06b6d4, #8b5cf6) !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 700 !important;
-    }}
+    /* REMOVED: Don't style ALL buttons globally - only specific ones */
 
     /* Start Analysis Button - Override with Pure Purple */
     [data-testid="stButton"] button:has-text('Start Analysis'),
@@ -2208,8 +2200,8 @@ _current_page = st.session_state.get('page_nav', 'journal')
 # Inject CSS to style the buttons with larger font and gradient
 st.markdown(f"""
 <style>
-/* Make ONLY navigation buttons larger (with specific marker class) */
-.nav-buttons-large div[data-testid="stButton"] > button {{
+/* Large Start Analysis buttons (for journal and import tabs) */
+.start-analysis-btn div[data-testid="stButton"] > button {{
     padding: 20px 16px !important;
     border-radius: 12px !important;
     transition: all 0.3s ease !important;
@@ -2217,12 +2209,12 @@ st.markdown(f"""
     letter-spacing: -0.01em !important;
 }}
 
-.nav-buttons-large div[data-testid="stButton"] > button * {{
+.start-analysis-btn div[data-testid="stButton"] > button * {{
     font-size: 2rem !important;
     font-weight: 700 !important;
 }}
 
-.nav-buttons-large div[data-testid="stButton"] > button:hover {{
+.start-analysis-btn div[data-testid="stButton"] > button:hover {{
     transform: translateY(-2px) !important;
     box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35) !important;
 }}
@@ -2243,20 +2235,48 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 </style>
 """, unsafe_allow_html=True)
 
-# --- Large Navigation Buttons (styled via CSS above) ---
-st.markdown('<div class="nav-buttons-large">', unsafe_allow_html=True)
-_btn_col1, _btn_col2 = st.columns([1, 1], gap="small")
+# --- Large Navigation Buttons with Custom HTML ---
+_current_page = st.session_state.get('page_nav', 'journal')
 
-with _btn_col1:
-    if st.button("📓 Trading Journal", use_container_width=True, key="btn_journal"):
-        st.session_state.page_nav = "journal"
-        st.rerun()
+st.markdown(f"""
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+    <button onclick="document.location.href='?nav=journal'" style="
+        background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']});
+        color: {COLORS['text_bright']};
+        border: 2px solid {COLORS['accent_cyan']};
+        padding: 24px 20px;
+        border-radius: 12px;
+        font-size: 2rem;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: -0.01em;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 32px rgba(6, 182, 212, 0.35)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(0, 0, 0, 0.2)';">
+        📓 Trading Journal
+    </button>
+    <button onclick="document.location.href='?nav=import'" style="
+        background: linear-gradient(135deg, {COLORS['accent_purple']}, {COLORS['accent_cyan']});
+        color: {COLORS['text_bright']};
+        border: 2px solid {COLORS['accent_purple']};
+        padding: 24px 20px;
+        border-radius: 12px;
+        font-size: 2rem;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: -0.01em;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 32px rgba(168, 85, 247, 0.35)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(0, 0, 0, 0.2)';">
+        📊 Import Data
+    </button>
+</div>
+""", unsafe_allow_html=True)
 
-with _btn_col2:
-    if st.button("📊 Import Data", use_container_width=True, key="btn_import"):
-        st.session_state.page_nav = "import"
-        st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+# Handle navigation via query params
+if 'nav' in st.query_params:
+    st.session_state.page_nav = st.query_params.get('nav', 'journal')
+    st.rerun()
 
 st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
@@ -2337,7 +2357,7 @@ if st.session_state.page_nav == "journal":
     """, unsafe_allow_html=True)
 
     # Centered Start Analysis button
-    st.markdown('<div class="nav-buttons-large">', unsafe_allow_html=True)
+    st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
     _btn_col = st.columns([1, 2, 1])
     with _btn_col[1]:
         start_j_analysis_top = st.button("Start Analysis", type="primary", use_container_width=True, key="j_coach_btn_top")
@@ -2880,7 +2900,7 @@ if st.session_state.page_nav == "import":
     st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
     # Centered Start Analysis button
-    st.markdown('<div class="nav-buttons-large">', unsafe_allow_html=True)
+    st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
     _b_btn_col = st.columns([1, 2, 1])
     with _b_btn_col[1]:
         start_b_analysis = st.button("Start Analysis", type="primary", use_container_width=True,
