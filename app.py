@@ -1832,18 +1832,37 @@ _is_authenticated_header = _restore_session_from_cookies()
 _user_email = st.session_state.get("sb_user_email", "")
 
 # --- Clean Header Bar (Magic UI Style) ---
-st.markdown(f"""
-<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0, 0, 0, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; height: 60px;">
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.01em;">
-        Hindsight Edge
+if _is_authenticated_header and _user_email:
+    # Authenticated: Show logo + logout
+    st.markdown(f"""
+    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0, 0, 0, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; height: 60px;">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.01em;">
+            Hindsight Edge
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <span style="color: {COLORS['text_dim']}; font-size: 0.9rem;">Logged in as <span style="color: {COLORS['accent_cyan']};">{_user_email}</span></span>
+        </div>
     </div>
-    <div style="display: flex; gap: 12px; align-items: center;">
-        {"" if _is_authenticated_header and _user_email else f'<button onclick="document.querySelector(\'[data-testid=\\"stButton\\"]\')?.click();" style="background: transparent; border: 1px solid {COLORS["text_bright"]}; color: {COLORS["text_bright"]}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">Log in</button>'}
-        {"" if _is_authenticated_header and _user_email else f'<button onclick="document.querySelectorAll(\'[data-testid=\\"stButton\\"]\')[1]?.click();" style="background: {COLORS["text_bright"]}; border: none; color: {COLORS["bg_dark"]}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">Sign up</button>'}
+    <div style="height: 60px;"></div>
+    """, unsafe_allow_html=True)
+else:
+    # Not authenticated: Show logo + login/signup
+    st.markdown(f"""
+    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0, 0, 0, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; height: 60px;">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.01em;">
+            Hindsight Edge
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;" id="header-buttons">
+            <button id="login-btn" style="background: transparent; border: 1px solid {COLORS['text_bright']}; color: {COLORS['text_bright']}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">Log in</button>
+            <button id="signup-btn" style="background: {COLORS['text_bright']}; border: none; color: {COLORS['bg_dark']}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">Sign up</button>
+        </div>
     </div>
-</div>
-<div style="height: 60px;"></div>
-""", unsafe_allow_html=True)
+    <div style="height: 60px;"></div>
+    <script>
+        document.getElementById('login-btn').onclick = () => document.querySelector('[data-testid="stButton"]')?.click();
+        document.getElementById('signup-btn').onclick = () => document.querySelectorAll('[data-testid="stButton"]')[1]?.click();
+    </script>
+    """, unsafe_allow_html=True)
 
 # --- Logout/Login info for authenticated users (top-right) ---
 if _is_authenticated_header and _user_email:
