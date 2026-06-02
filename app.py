@@ -2147,19 +2147,21 @@ if df is not None:
     trades = parse_trades(df)
     stats = compute_stats(trades)
 
+# --- Hindsight Edge Title (above tabs, centered) ---
+st.markdown(f"""
+<div style="text-align: center; margin-bottom: 24px; margin-top: 12px;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 2.2rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.02em;">
+        Hindsight Edge
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 # =====================================================
 # PAGE: JOURNAL (in tab)
 # =====================================================
 with tab_journal:
     _jt_coach = st.session_state.journal_trades
     _jt_count = len(_jt_coach)
-
-    # Header: Hindsight Edge title
-    st.markdown(f"""
-    <div style="font-family: 'Instrument Serif', serif; font-size: 3.2rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px;">
-        Hindsight Edge
-    </div>
-    """, unsafe_allow_html=True)
 
     # Sub-header: Trading Journal
     st.markdown(f"""
