@@ -2250,48 +2250,18 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 </style>
 """, unsafe_allow_html=True)
 
-# --- Large Navigation Buttons with Custom HTML ---
-_current_page = st.session_state.get('page_nav', 'journal')
+# --- Large Navigation Buttons (Streamlit buttons with CSS styling) ---
+_btn_col1, _btn_col2 = st.columns([1, 1], gap="small")
 
-st.markdown(f"""
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-    <button onclick="document.location.href='?nav=journal'" style="
-        background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']});
-        color: {COLORS['text_bright']};
-        border: 2px solid {COLORS['accent_cyan']};
-        padding: 24px 20px;
-        border-radius: 12px;
-        font-size: 2rem;
-        font-weight: 700;
-        cursor: pointer;
-        letter-spacing: -0.01em;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 32px rgba(6, 182, 212, 0.35)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(0, 0, 0, 0.2)';">
-        📓 Trading Journal
-    </button>
-    <button onclick="document.location.href='?nav=import'" style="
-        background: linear-gradient(135deg, {COLORS['accent_purple']}, {COLORS['accent_cyan']});
-        color: {COLORS['text_bright']};
-        border: 2px solid {COLORS['accent_purple']};
-        padding: 24px 20px;
-        border-radius: 12px;
-        font-size: 2rem;
-        font-weight: 700;
-        cursor: pointer;
-        letter-spacing: -0.01em;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 32px rgba(168, 85, 247, 0.35)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(0, 0, 0, 0.2)';">
-        📊 Import Data
-    </button>
-</div>
-""", unsafe_allow_html=True)
+with _btn_col1:
+    if st.button("📓 Trading Journal", use_container_width=True, key="btn_journal"):
+        st.session_state.page_nav = "journal"
+        st.rerun()
 
-# Handle navigation via query params
-if 'nav' in st.query_params:
-    st.session_state.page_nav = st.query_params.get('nav', 'journal')
-    st.rerun()
+with _btn_col2:
+    if st.button("📊 Import Data", use_container_width=True, key="btn_import"):
+        st.session_state.page_nav = "import"
+        st.rerun()
 
 st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
