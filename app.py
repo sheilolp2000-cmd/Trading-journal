@@ -2215,7 +2215,7 @@ _current_page = st.session_state.get('page_nav', 'journal')
 # Inject CSS to style the buttons with larger font and gradient
 st.markdown(f"""
 <style>
-/* Large Start Analysis buttons (for journal and import tabs) */
+/* Large Start Analysis buttons (for journal tab) */
 .start-analysis-btn div[data-testid="stButton"] > button {{
     padding: 20px 16px !important;
     border-radius: 12px !important;
@@ -2230,6 +2230,25 @@ st.markdown(f"""
 }}
 
 .start-analysis-btn div[data-testid="stButton"] > button:hover {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35) !important;
+}}
+
+/* Extra large Start Analysis button for Import Data tab (top) */
+.start-analysis-btn-import div[data-testid="stButton"] > button {{
+    padding: 20px 16px !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+    letter-spacing: -0.01em !important;
+}}
+
+.start-analysis-btn-import div[data-testid="stButton"] > button * {{
+    font-size: 3.5rem !important;
+    font-weight: 700 !important;
+}}
+
+.start-analysis-btn-import div[data-testid="stButton"] > button:hover {{
     transform: translateY(-2px) !important;
     box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35) !important;
 }}
@@ -2843,7 +2862,7 @@ if st.session_state.page_nav == "import":
 
     # --- Upload Section ---
     # Centered Start Analysis button (at top, same as Trading Journal)
-    st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
+    st.markdown('<div class="start-analysis-btn-import">', unsafe_allow_html=True)
     _b_btn_col_top = st.columns([1, 2, 1])
     with _b_btn_col_top[1]:
         start_b_analysis = st.button("⚡ Start Analysis", type="primary", use_container_width=True,
