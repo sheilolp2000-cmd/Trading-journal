@@ -2298,6 +2298,50 @@ if st.session_state.page_nav == "journal":
     with _btn_col[1]:
         start_j_analysis_top = st.button("Start Analysis", type="primary", use_container_width=True, key="j_coach_btn_top")
 
+    # --- Previous Journal Analyses (analysis history) ---
+    st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
+    if _jt_count > 0:
+        analyses_dir_j = Path(__file__).parent / "analyses"
+        if analyses_dir_j.exists():
+            prev_j = sorted(analyses_dir_j.glob("journal_analysis_*.md"), reverse=True)
+            if prev_j:
+                st.markdown(f"<div style='font-size: 0.8rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;'>Previous Journal Analyses</div>", unsafe_allow_html=True)
+                def _fmt_journal_name(stem):
+                    s = stem.replace("journal_analysis_", "")
+                    try:
+                        dt = datetime.strptime(s, "%Y-%m-%d_%H-%M")
+                        return dt.strftime("%Y.%m.%d %H:%M Uhr")
+                    except Exception:
+                        return s.replace("_", " ")
+                prev_j_opts = {_fmt_journal_name(f.stem): f for f in prev_j[:10]}
+                sel_j = st.selectbox("Select", options=["Select..."] + list(prev_j_opts.keys()), index=0, label_visibility="collapsed", key="j_analysis_selector", disabled=False)
+                if sel_j and sel_j != "Select..." and sel_j in prev_j_opts:
+                    _del_col1, _del_col2 = st.columns([9, 1])
+                    with _del_col2:
+                        if st.button("🗑", key="j_del_analysis", help="Delete this analysis", use_container_width=True):
+                            st.session_state.j_confirm_delete = sel_j
+                if st.session_state.get("j_confirm_delete") == sel_j and sel_j and sel_j != "Select...":
+                    st.warning(f"Delete **{sel_j}**? This cannot be undone.")
+                    _cb1, _cb2 = st.columns(2)
+                    with _cb1:
+                        if st.button("Yes, delete", key="j_confirm_yes", type="primary"):
+                            prev_j_opts[sel_j].unlink()
+                            st.session_state.pop("j_confirm_delete", None)
+                            st.rerun()
+                    with _cb2:
+                        if st.button("Cancel", key="j_confirm_no"):
+                            st.session_state.pop("j_confirm_delete", None)
+                            st.rerun()
+
+                # Show selected analysis if one is selected
+                if sel_j and sel_j != "Select..." and sel_j in prev_j_opts:
+                    st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+                    selected_file = prev_j_opts[sel_j]
+                    analysis_content = selected_file.read_text(encoding='utf-8')
+                    st.markdown(f'<div class="analysis-box">', unsafe_allow_html=True)
+                    st.markdown(analysis_content)
+                    st.markdown('</div>', unsafe_allow_html=True)
+
     if start_j_analysis_top:
         if _jt_count == 0:
             st.warning("No trades in the journal yet. Log some trades first.")
