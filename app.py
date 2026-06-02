@@ -2158,7 +2158,9 @@ if st.session_state.page_nav == "journal":
     _jt_coach = st.session_state.journal_trades
     _jt_count = len(_jt_coach)
 
-    # Hindsight Edge Header (moved to top)
+    # =====================================================
+    # TRADING JOURNAL - HINDSIGHT EDGE ANALYSIS
+    # =====================================================
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 32px;">
         <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
@@ -2199,7 +2201,7 @@ if st.session_state.page_nav == "journal":
             st.rerun()
 
     # =====================================================
-    # TRADING JOURNAL SUB-HEADER
+    # TRADING JOURNAL - TRADE LIST
     # =====================================================
     st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
     st.markdown(f"""
