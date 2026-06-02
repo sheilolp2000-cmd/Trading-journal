@@ -1162,7 +1162,7 @@ def build_ai_prompt(stats, trades):
 ---
 
 Analyze this data now. Follow EXACTLY the format from your system prompt.
-All 8 sections are mandatory. Skip NONE. Section 8 (Focus Plan) is the most important — it contains 5 concrete instructions the trader must change IMMEDIATELY.
+All 9 sections are mandatory. Skip NONE. Section 2 (Focus Plan) is the most important — it contains 5 concrete instructions the trader must change IMMEDIATELY.
 """
 
     return system_prompt, data_summary
@@ -1270,7 +1270,7 @@ def build_journal_ai_prompt(journal_trades):
 ---
 
 Analyze this journal data now. Follow EXACTLY the format from your system prompt.
-All 8 sections are mandatory. Skip NONE. Section 8 (Focus Plan) is the most important.
+All 9 sections are mandatory. Skip NONE. Section 2 (Focus Plan) is the most important.
 
 If trade screenshots are provided, analyze them as part of the trade context — look at chart patterns, entry/exit points, market structure, and any visible mistakes or good decisions. Reference specific screenshots in your analysis where relevant.
 """

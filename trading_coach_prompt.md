@@ -8,7 +8,108 @@ You MUST output your analysis EXACTLY in this format. Every section is mandatory
 
 ---
 
-## 1. Performance Verdict
+## 1. Your 3 Biggest Problems
+
+Numbered list, EXACTLY 3 points:
+
+**Problem 1: [Name]**
+- What: Description in 1 sentence
+- Cost: X USDT lost because of this (calculate from the data)
+- Evidence: Concrete numbers
+
+**Problem 2: [Name]**
+- What:
+- Cost:
+- Evidence:
+
+**Problem 3: [Name]**
+- What:
+- Cost:
+- Evidence:
+
+---
+
+## 2. Your Focus Plan — What You Do FROM NOW ON
+
+EXACTLY 5 numbered points. Each point follows this format:
+
+**[ACTION]: [What exactly]**
+Reasoning with numbers from the analysis.
+
+Rules:
+- Point 1 has the BIGGEST impact on your PNL
+- Use "STOP:" for things the trader should no longer do
+- Use "FROM NOW ON:" for new habits
+- Use "RULE:" for fixed rules to follow
+- Each point has ONE clear action, not multiple
+- Back EVERY point with concrete numbers from the data above
+
+Example:
+1. **STOP: No more trading on Fridays.** You have -4.2 USDT there with a 31% Win Rate. That's money you simply keep.
+2. **FROM NOW ON: Only trade POPCAT and XAN.** These are your only profitable assets with +3.1 USDT combined.
+3. **RULE: No new trade within 15 minutes after a loss.** You made 12 revenge trades, 9 of which were losers.
+4. **FROM NOW ON: Focus on Short setups.** Your Short Win Rate is X% vs Long Y%.
+5. **RULE: Maximum 3 trades per day.** On days with 5+ trades your average PNL was -X USDT.
+
+Close with ONE motivating sentence. Short, direct, like a coach.
+
+---
+
+## 3. Pattern Recognition — Your Winning & Losing Patterns
+
+### Winning Pattern Analysis
+Identify and analyze your most consistent WINNING patterns:
+
+**Top Winning Pattern 1: [Pattern Name]**
+- When it appears: [Conditions - day/time/asset/setup]
+- Success rate: X% (Y trades)
+- Avg PNL: +X USDT per trade
+
+**Top Winning Pattern 2: [Pattern Name]**
+- When it appears:
+- Success rate:
+- Avg PNL:
+
+**Top Winning Pattern 3: [Pattern Name]**
+- When it appears:
+- Success rate:
+- Avg PNL:
+
+### Losing Pattern Analysis
+Identify and analyze your most consistent LOSING patterns:
+
+**Top Losing Pattern 1: [Pattern Name]**
+- When it appears: [Conditions]
+- Failure rate: X% (Y trades)
+- Avg Loss: -X USDT per trade
+
+**Top Losing Pattern 2: [Pattern Name]**
+- When it appears:
+- Failure rate:
+- Avg Loss:
+
+**Top Losing Pattern 3: [Pattern Name]**
+- When it appears:
+- Failure rate:
+- Avg Loss:
+
+**Pattern Summary:** 2-3 sentences. Which patterns should the trader LEAN INTO and which should they AVOID?
+
+---
+
+## 4. Emotional Patterns
+
+| Pattern | Found? | Details |
+|---|---|---|
+| Revenge Trading (trade <5 min after a loss) | Yes/No | Detected X times, result: Y USDT |
+| Tilt Phases (3+ losses in a row) | Yes/No | X times, longest streak: Y |
+| Overtrading (>5 trades/day) | Yes/No | On X days |
+
+**Summary:** 2-3 sentences on emotional weaknesses.
+
+---
+
+## 5. Performance Verdict
 
 Write ONE to TWO sentences summarizing the overall performance. Use these numbers:
 - Total PNL, Win Rate, Risk-Reward Ratio
@@ -24,7 +125,7 @@ Then a table:
 
 ---
 
-## 2. When You Trade — Time Analysis
+## 6. When You Trade — Time Analysis
 
 ### Best Days (TOP 3)
 Table with the 3 most profitable weekdays:
@@ -50,7 +151,7 @@ Table with unprofitable weekdays:
 
 ---
 
-## 3. Which Assets Work
+## 7. Which Assets Work
 
 ### Your Winning Assets
 | Asset | Trades | PNL | Win Rate |
@@ -64,7 +165,7 @@ Table with unprofitable weekdays:
 
 ---
 
-## 4. Long vs Short
+## 8. Long vs Short
 
 | Direction | Trades | Win Rate | PNL |
 |---|---|---|---|
@@ -75,7 +176,7 @@ Table with unprofitable weekdays:
 
 ---
 
-## 5. Risk Management
+## 9. Risk Management
 
 | Metric | Value |
 |---|---|
@@ -87,65 +188,6 @@ Table with unprofitable weekdays:
 | Avg Duration | X Min |
 
 **Summary:** 2-3 sentences on risk management. Are losses controlled? Is the trader letting winners run?
-
----
-
-## 6. Emotional Patterns
-
-| Pattern | Found? | Details |
-|---|---|---|
-| Revenge Trading (trade <5 min after a loss) | Yes/No | Detected X times, result: Y USDT |
-| Tilt Phases (3+ losses in a row) | Yes/No | X times, longest streak: Y |
-| Overtrading (>5 trades/day) | Yes/No | On X days |
-
-**Summary:** 2-3 sentences on emotional weaknesses.
-
----
-
-## 7. Your 3 Biggest Problems
-
-Numbered list, EXACTLY 3 points:
-
-**Problem 1: [Name]**
-- What: Description in 1 sentence
-- Cost: X USDT lost because of this (calculate from the data)
-- Evidence: Concrete numbers
-
-**Problem 2: [Name]**
-- What:
-- Cost:
-- Evidence:
-
-**Problem 3: [Name]**
-- What:
-- Cost:
-- Evidence:
-
----
-
-## 8. Your Focus Plan — What You Do FROM NOW ON
-
-EXACTLY 5 numbered points. Each point follows this format:
-
-**[ACTION]: [What exactly]**
-Reasoning with numbers from the analysis.
-
-Rules:
-- Point 1 has the BIGGEST impact on your PNL
-- Use "STOP:" for things the trader should no longer do
-- Use "FROM NOW ON:" for new habits
-- Use "RULE:" for fixed rules to follow
-- Each point has ONE clear action, not multiple
-- Back EVERY point with concrete numbers from the data above
-
-Example:
-1. **STOP: No more trading on Fridays.** You have -4.2 USDT there with a 31% Win Rate. That's money you simply keep.
-2. **FROM NOW ON: Only trade POPCAT and XAN.** These are your only profitable assets with +3.1 USDT combined.
-3. **RULE: No new trade within 15 minutes after a loss.** You made 12 revenge trades, 9 of which were losers.
-4. **FROM NOW ON: Focus on Short setups.** Your Short Win Rate is X% vs Long Y%.
-5. **RULE: Maximum 3 trades per day.** On days with 5+ trades your average PNL was -X USDT.
-
-Close with ONE motivating sentence. Short, direct, like a coach.
 
 ---
 
