@@ -62,14 +62,15 @@ else:
     _cookie_mgr = None
 
 def _save_session_cookies(access_token, refresh_token, user_id, user_email):
-    """Save session to browser (cookies + localStorage for 24+ hours)"""
+    """Save session to browser (cookies + localStorage for 24 hours)"""
     if _cookie_mgr is None:
         return
     try:
-        _cookie_mgr.set("tcj_access_token", access_token, key="set_at")
-        _cookie_mgr.set("tcj_refresh_token", refresh_token, key="set_rt")
-        _cookie_mgr.set("tcj_user_id", user_id, key="set_uid")
-        _cookie_mgr.set("tcj_user_email", user_email, key="set_em")
+        expires_at = datetime.now() + timedelta(hours=24)
+        _cookie_mgr.set("tcj_access_token", access_token, key="set_at", expires_at=expires_at)
+        _cookie_mgr.set("tcj_refresh_token", refresh_token, key="set_rt", expires_at=expires_at)
+        _cookie_mgr.set("tcj_user_id", user_id, key="set_uid", expires_at=expires_at)
+        _cookie_mgr.set("tcj_user_email", user_email, key="set_em", expires_at=expires_at)
     except Exception:
         pass
 
