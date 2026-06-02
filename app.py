@@ -1831,48 +1831,15 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 _is_authenticated_header = _restore_session_from_cookies()
 _user_email = st.session_state.get("sb_user_email", "")
 
-# --- Clean Header Bar (Magic UI Style) ---
-if _is_authenticated_header and _user_email:
-    # Authenticated: Show logo + logout
-    st.markdown(f"""
-    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0, 0, 0, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; height: 60px;">
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.01em;">
-            Hindsight Edge
-        </div>
-        <div style="display: flex; gap: 12px; align-items: center;">
-            <span style="color: {COLORS['text_dim']}; font-size: 0.9rem;">Logged in as <span style="color: {COLORS['accent_cyan']};">{_user_email}</span></span>
-        </div>
+# --- Clean Header Bar (Magic UI Style) - Logo only ---
+st.markdown(f"""
+<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0, 0, 0, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; height: 60px;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.01em;">
+        Hindsight Edge
     </div>
-    <div style="height: 60px;"></div>
-    """, unsafe_allow_html=True)
-else:
-    # Not authenticated: Show logo + login/signup
-    st.markdown(f"""
-    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0, 0, 0, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; height: 60px;">
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.01em;">
-            Hindsight Edge
-        </div>
-        <div style="display: flex; gap: 12px; align-items: center;" id="header-buttons">
-            <button id="login-btn" style="background: transparent; border: 1px solid {COLORS['text_bright']}; color: {COLORS['text_bright']}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">Log in</button>
-            <button id="signup-btn" style="background: {COLORS['text_bright']}; border: none; color: {COLORS['bg_dark']}; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">Sign up</button>
-        </div>
-    </div>
-    <div style="height: 60px;"></div>
-    <script>
-        document.getElementById('login-btn').onclick = () => document.querySelector('[data-testid="stButton"]')?.click();
-        document.getElementById('signup-btn').onclick = () => document.querySelectorAll('[data-testid="stButton"]')[1]?.click();
-    </script>
-    """, unsafe_allow_html=True)
-
-# --- Logout/Login info for authenticated users (top-right) ---
-if _is_authenticated_header and _user_email:
-    _h1, _h2, _h3 = st.columns([1, 10, 1.5])
-    with _h3:
-        st.markdown(f"<div style='margin-top: -55px; text-align: right; font-size: 0.85rem; color: {COLORS['text_dim']};'>Logged in as <span style='color: {COLORS['accent_cyan']};'>{_user_email}</span></div>", unsafe_allow_html=True)
-        if st.button("Logout", key="logout_btn"):
-            st.session_state.clear()
-            _clear_session_cookies()
-            st.rerun()
+</div>
+<div style="height: 60px;"></div>
+""", unsafe_allow_html=True)
 
 # --- Hero Section (visible to everyone) ---
 _hero_col1, _hero_col2, _hero_col3 = st.columns([1, 3, 1], gap="large")
