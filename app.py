@@ -2078,8 +2078,18 @@ if 'data_context' not in st.session_state:
 if 'page_nav' not in st.session_state:
     st.session_state.page_nav = "journal"
 
-page_idx = 0 if st.session_state.page_nav == "journal" else 1
-tab_journal, tab_import = st.tabs(["📓 Trading Journal", "📊 Import Data"])
+# --- Large Navigation Buttons (instead of tabs) ---
+_btn_col1, _btn_col2 = st.columns([1, 1], gap="small")
+
+with _btn_col1:
+    if st.button("📓 Trading Journal", use_container_width=True, key="btn_journal"):
+        st.session_state.page_nav = "journal"
+        st.rerun()
+
+with _btn_col2:
+    if st.button("📊 Import Data", use_container_width=True, key="btn_import"):
+        st.session_state.page_nav = "import"
+        st.rerun()
 
 st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
@@ -2142,9 +2152,9 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =====================================================
-# PAGE: JOURNAL (in tab)
+# PAGE: JOURNAL
 # =====================================================
-with tab_journal:
+if st.session_state.page_nav == "journal":
     _jt_coach = st.session_state.journal_trades
     _jt_count = len(_jt_coach)
 
@@ -2582,9 +2592,9 @@ Answer follow-up questions directly and concretely using numbers from the data. 
 
 
 # =====================================================
-# PAGE: IMPORT DATA (in tab)
+# PAGE: IMPORT DATA
 # =====================================================
-with tab_import:
+if st.session_state.page_nav == "import":
     if 'broker_analysis_result' not in st.session_state:
         st.session_state.broker_analysis_result = None
     if 'broker_chat_messages' not in st.session_state:
