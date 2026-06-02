@@ -2004,26 +2004,6 @@ if not _ensure_valid_token():
         st.session_state.pop(_k, None)
     st.rerun()
 
-# --- Dashboard Header (only shown when logged in) ---
-_user_email = st.session_state.get('sb_user_email', '')
-_header_left, _header_center, _header_right = st.columns([1, 1, 1])
-
-with _header_right:
-    st.markdown(f"""
-    <div style="text-align: right;">
-        <div style="font-size: 0.75rem; color: {COLORS['text_dim']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">Logged in as</div>
-        <div style="font-size: 0.9rem; color: {COLORS['accent_cyan']}; font-weight: 600; margin-bottom: 12px;">
-            {_html.escape(_user_email[:30])}{'...' if len(_user_email) > 30 else ''}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("Logout", key="logout_top_right", use_container_width=True, help="Sign out"):
-        _sb_logout(st.session_state.get('sb_access_token', ''))
-        _clear_session_cookies()
-        for _k in ['sb_access_token', 'sb_refresh_token', 'sb_user_id', 'sb_user_email', 'journal_trades']:
-            st.session_state.pop(_k, None)
-        st.rerun()
-
 st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
 # --- Journal helpers (DB-backed) ---
