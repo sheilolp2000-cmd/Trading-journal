@@ -1829,23 +1829,38 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 
 # --- Check if authenticated (before rendering header) ---
 _is_authenticated_header = _restore_session_from_cookies()
-_user_email = st.session_state.get("user_email", "")
+_user_email = st.session_state.get("sb_user_email", "")
 
 # --- Clean Header Bar (always visible) ---
-if _is_authenticated_header:
-    # Authenticated: Show Logo | Logout + Email
+if _is_authenticated_header and _user_email:
+    # Authenticated: Show Logo | Email + Logout Button
     header_html = f"""
     <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 2px solid rgba(6,182,212,0.2); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
         <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
             Hindsight Edge
         </div>
-        <div style="display: flex; gap: 20px; align-items: center;">
+        <div style="display: flex; gap: 20px; align-items: center; justify-content: flex-end;">
             <div style="color: {COLORS['text_dim']}; font-size: 0.9rem;">Logged in as <span style="color: {COLORS['accent_cyan']}; font-weight: 600;">{_user_email}</span></div>
             <div style="width: 1px; height: 24px; background: rgba(6,182,212,0.3);"></div>
         </div>
     </div>
     <div style="height: 70px;"></div>
+
+    <!-- Logout Button in top right -->
+    <div style="position: fixed; top: 18px; right: 40px; z-index: 1001;">
     """
+    st.markdown(header_html, unsafe_allow_html=True)
+
+    # Logout button as Streamlit button
+    _logout_col1, _logout_col2 = st.columns([5, 1])
+    with _logout_col2:
+        if st.button("Logout", key="logout_btn", use_container_width=True):
+            st.session_state.clear()
+            _clear_session_cookies()
+            st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='height: 20px'></div>", unsafe_allow_html=True)
 else:
     # Not authenticated: Show Logo | Login + Signup
     header_html = f"""
