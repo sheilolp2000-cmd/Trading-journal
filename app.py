@@ -2356,7 +2356,7 @@ if st.session_state.page_nav == "journal":
     st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
     _btn_col = st.columns([1, 2, 1])
     with _btn_col[1]:
-        start_j_analysis_top = st.button("Start Analysis", type="primary", use_container_width=True, key="j_coach_btn_top")
+        start_j_analysis_top = st.button("⚡ Start Analysis", type="primary", use_container_width=True, key="j_coach_btn_top")
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Previous Journal Analyses (analysis history) ---
@@ -2899,7 +2899,7 @@ if st.session_state.page_nav == "import":
     st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
     _b_btn_col = st.columns([1, 2, 1])
     with _b_btn_col[1]:
-        start_b_analysis = st.button("Start Analysis", type="primary", use_container_width=True,
+        start_b_analysis = st.button("⚡ Start Analysis", type="primary", use_container_width=True,
                                      key="b_coach_btn", disabled=(df is None))
     st.markdown('</div>', unsafe_allow_html=True)
 
