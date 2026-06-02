@@ -61,73 +61,83 @@ if _COOKIES_AVAILABLE:
 else:
     _cookie_mgr = None
 
-# Initialize session restoration on every page load (before UI rendering)
-def _init_session_from_storage():
-    """Restore session from browser localStorage on every page load using query params"""
+# --- Global Session Store (persists across page reloads) ---
+@st.cache_resource
+def get_session_store():
+    """Global session storage that persists across page reloads (not deleted on F5)"""
+    return {}
+
+_session_store = get_session_store()
+
+# Auto-restore session from browser localStorage on every page load
+def _auto_restore_session():
+    """Automatically restore session from browser localStorage without user action"""
     if 'sb_access_token' in st.session_state:
         return  # Already authenticated
 
-    # Check if we have session data in query params (from localStorage redirect)
-    try:
-        if 'tcj_token' in st.query_params and 'tcj_uid' in st.query_params:
-            token = st.query_params.get('tcj_token', '')
-            uid = st.query_params.get('tcj_uid', '')
-            email = st.query_params.get('tcj_email', '')
-            refresh = st.query_params.get('tcj_refresh', '')
-
-            if token and uid:
-                st.session_state.sb_access_token = token
-                st.session_state.sb_refresh_token = refresh
-                st.session_state.sb_user_id = uid
-                st.session_state.sb_user_email = email
-                return True
-    except:
-        pass
-
-    # Inject JavaScript to check localStorage and redirect with query params (only if not already set)
-    st.markdown("""
+    # Inject JavaScript that reads localStorage and sets window variables
+    # These variables persist across Streamlit reruns
+    st.markdown(f"""
     <script>
-    (function() {
-        const params = new URLSearchParams(window.location.search);
-        // Only check localStorage if we don't already have session params (avoid redirect loop)
-        if (!params.has('tcj_token')) {
-            const session = localStorage.getItem('tcj_session');
-            if (session) {
-                try {
-                    const data = JSON.parse(atob(session));
-                    if (data.access_token && data.user_id) {
-                        const saved = new Date(data.saved_at);
-                        const now = new Date();
-                        const hours = (now - saved) / (1000 * 60 * 60);
+    (function() {{
+        // Read session from localStorage
+        const session = localStorage.getItem('tcj_session');
+        if (session) {{
+            try {{
+                const data = JSON.parse(atob(session));
+                if (data.access_token && data.user_id) {{
+                    const saved = new Date(data.saved_at);
+                    const now = new Date();
+                    const hours = (now - saved) / (1000 * 60 * 60);
 
-                        if (hours < 24) {
-                            // Session is valid and less than 24 hours old
-                            params.set('tcj_token', data.access_token);
-                            params.set('tcj_uid', data.user_id);
-                            params.set('tcj_email', data.user_email);
-                            params.set('tcj_refresh', data.refresh_token);
-                            window.location.search = params.toString();
-                            console.log('✅ Restoring session from localStorage...');
-                        } else {
-                            // Session expired, clear it
-                            localStorage.removeItem('tcj_session');
-                            console.log('⏰ Session expired (24+ hours old)');
-                        }
-                    }
-                } catch(e) {
-                    console.log('Error parsing localStorage session:', e);
-                }
-            }
-        }
-    })();
+                    if (hours < 24) {{
+                        // Session is valid — store in window object
+                        window.tcj_session = {{
+                            access_token: data.access_token,
+                            refresh_token: data.refresh_token,
+                            user_id: data.user_id,
+                            user_email: data.user_email,
+                            saved_at: data.saved_at
+                        }};
+
+                        // Signal that we found a valid session
+                        if (!window.parent.document.body.dataset.tcjSessionRestored) {{
+                            window.parent.document.body.dataset.tcjSessionRestored = 'true';
+                            console.log('✅ Valid session found in localStorage — restoring...');
+                        }}
+                    }} else {{
+                        // Session expired
+                        localStorage.removeItem('tcj_session');
+                        console.log('⏰ Session expired (24+ hours old)');
+                    }}
+                }}
+            }} catch(e) {{
+                console.log('Error reading localStorage:', e);
+            }}
+        }}
+    }})();
     </script>
     """, unsafe_allow_html=True)
 
-# Call this at the very start
-_init_session_from_storage()
+    # Try to restore from Streamlit's session state (which persists across reruns)
+    if 'tcj_session' not in _session_store:
+        return False
+
+    session = _session_store.get('tcj_session', {})
+    if session and session.get('access_token') and session.get('user_id'):
+        st.session_state.sb_access_token = session['access_token']
+        st.session_state.sb_refresh_token = session.get('refresh_token', '')
+        st.session_state.sb_user_id = session['user_id']
+        st.session_state.sb_user_email = session.get('user_email', '')
+        return True
+
+    return False
+
+# Call this at the very start to auto-restore
+_auto_restore_session()
 
 def _save_session_cookies(access_token, refresh_token, user_id, user_email):
-    """Save session to browser localStorage for 24 hours (survives refresh)"""
+    """Save session to browser localStorage + server-side store for 24-hour persistence"""
     data = {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -135,6 +145,17 @@ def _save_session_cookies(access_token, refresh_token, user_id, user_email):
         "user_email": user_email,
         "saved_at": str(datetime.now())
     }
+
+    # Save to global session store (persists across Streamlit reruns)
+    _session_store['tcj_session'] = {
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'user_id': user_id,
+        'user_email': user_email,
+        'saved_at': datetime.now()
+    }
+
+    # Save to browser localStorage for cross-session persistence
     try:
         import base64
         encoded = base64.b64encode(json.dumps(data).encode()).decode()
@@ -142,7 +163,7 @@ def _save_session_cookies(access_token, refresh_token, user_id, user_email):
         <script>
         localStorage.setItem('tcj_session', '{encoded}');
         window.tcj_session_data = {json.dumps(data)};
-        console.log('✅ Session saved to localStorage (24-hour persistence)');
+        console.log('✅ Session saved (localStorage + Server Store — 24-hour persistence)');
         </script>
         """, unsafe_allow_html=True)
     except Exception:
@@ -184,11 +205,33 @@ def _clear_session_cookies():
             pass
 
 def _restore_session_from_cookies():
-    """Restore session from persistent browser storage (24+ hours)"""
+    """Restore session from global server store (persists across page reloads)"""
     if 'sb_access_token' in st.session_state:
         return True
 
-    # Try to restore from cookies first
+    # Try to restore from global session store first (survives page reloads)
+    if 'tcj_session' in _session_store:
+        session = _session_store['tcj_session']
+        if isinstance(session, dict) and session.get('access_token') and session.get('user_id'):
+            # Check if session is still valid (< 24 hours)
+            saved_at = session.get('saved_at')
+            if isinstance(saved_at, datetime):
+                hours_old = (datetime.now() - saved_at).total_seconds() / 3600
+                if hours_old < 24:
+                    st.session_state.sb_access_token = session['access_token']
+                    st.session_state.sb_refresh_token = session.get('refresh_token', '')
+                    st.session_state.sb_user_id = session['user_id']
+                    st.session_state.sb_user_email = session.get('user_email', '')
+                    return True
+            else:
+                # Fallback if saved_at is a string
+                st.session_state.sb_access_token = session['access_token']
+                st.session_state.sb_refresh_token = session.get('refresh_token', '')
+                st.session_state.sb_user_id = session['user_id']
+                st.session_state.sb_user_email = session.get('user_email', '')
+                return True
+
+    # Try to restore from cookies as fallback
     if _cookie_mgr is not None:
         try:
             cookies = _cookie_mgr.get_all()
