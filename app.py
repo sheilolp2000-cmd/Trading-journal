@@ -1839,13 +1839,23 @@ if _is_authenticated_header and _user_email:
         <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
             Hindsight Edge
         </div>
-        <div style="display: flex; gap: 20px; align-items: center; justify-content: flex-end;">
-            <div style="color: {COLORS['text_dim']}; font-size: 0.9rem;">Logged in as <span style="color: {COLORS['accent_cyan']}; font-weight: 600;">{_user_email}</span></div>
-            <div style="width: 1px; height: 24px; background: rgba(6,182,212,0.3);"></div>
-            <button onclick="document.querySelector('[data-testid=\\'stButton\\']')?.click();" style="background: transparent; border: 1px solid {COLORS['accent_cyan']}; color: {COLORS['text_dim']}; padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+        <div style="display: flex; gap: 16px; align-items: center; justify-content: flex-end;">
+            <div style="color: {COLORS['text_dim']}; font-size: 0.85rem;">Logged in as <span style="color: {COLORS['accent_cyan']}; font-weight: 600; font-size: 0.9rem;">{_user_email}</span></div>
+            <div style="width: 1px; height: 20px; background: rgba(6,182,212,0.3);"></div>
+            <button id="logout-btn" style="background: transparent; border: 1px solid {COLORS['accent_cyan']}; color: {COLORS['text_dim']}; padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">
                 Logout
             </button>
         </div>
+
+        <script>
+            document.getElementById('logout-btn').addEventListener('click', function() {{
+                // Find and click the hidden logout button from Streamlit
+                const buttons = document.querySelectorAll('[data-testid="stButton"]');
+                if (buttons.length > 0) {{
+                    buttons[0].click();
+                }}
+            }});
+        </script>
     </div>
     <div style="height: 70px;"></div>
     """
