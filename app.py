@@ -2689,12 +2689,11 @@ if st.session_state.page_nav == "import":
                         return s.replace("_", " ")
                 _active_file = st.session_state.get('selected_export', 'Data Upload')
                 prev_b_opts = {f"{_fmt_broker_name(f.stem)} ({_active_file})": f for f in prev_b[:10]}
-                _bsel_col, _bdel_col = st.columns([5, 1])
-                with _bsel_col:
-                    sel_b = st.selectbox("Select", options=["Select..."] + list(prev_b_opts.keys()), index=0, label_visibility="collapsed", key="b_analysis_selector")
-                with _bdel_col:
-                    if sel_b and sel_b != "Select...":
-                        if st.button("🗑", key="b_del_analysis", help="Delete this analysis"):
+                sel_b = st.selectbox("Select", options=["Select..."] + list(prev_b_opts.keys()), index=0, label_visibility="collapsed", key="b_analysis_selector", disabled=False)
+                if sel_b and sel_b != "Select..." and sel_b in prev_b_opts:
+                    _del_col1, _del_col2 = st.columns([9, 1])
+                    with _del_col2:
+                        if st.button("🗑", key="b_del_analysis", help="Delete this analysis", use_container_width=True):
                             st.session_state.b_confirm_delete = sel_b
                 if st.session_state.get("b_confirm_delete") == sel_b and sel_b and sel_b != "Select...":
                     st.warning(f"Delete **{sel_b}**? This cannot be undone.")
