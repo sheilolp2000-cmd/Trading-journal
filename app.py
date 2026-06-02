@@ -708,6 +708,21 @@ st.markdown("""
 
     /* REMOVED: Don't style ALL buttons globally - only specific ones */
 
+    /* Calendar navigation arrows - no background */
+    [data-testid="stButton"] button:has-text('◀'),
+    [data-testid="stButton"] button:has-text('▶') {{
+        background: transparent !important;
+        border: none !important;
+        color: {COLORS['text_bright']} !important;
+        font-weight: 600 !important;
+    }}
+
+    [data-testid="stButton"] button:has-text('◀'):hover,
+    [data-testid="stButton"] button:has-text('▶'):hover {{
+        background: transparent !important;
+        color: {COLORS['accent_cyan']} !important;
+    }}
+
     /* Start Analysis Button - Override with Pure Purple */
     [data-testid="stButton"] button:has-text('Start Analysis'),
     button:has-text('Start Analysis') {{
