@@ -2208,8 +2208,8 @@ _current_page = st.session_state.get('page_nav', 'journal')
 # Inject CSS to style the buttons with larger font and gradient
 st.markdown(f"""
 <style>
-/* Make Streamlit buttons larger and gradient-styled */
-div[data-testid="stButton"] > button {{
+/* Make ONLY navigation buttons larger (with specific marker class) */
+.nav-buttons-large div[data-testid="stButton"] > button {{
     padding: 20px 16px !important;
     border-radius: 12px !important;
     transition: all 0.3s ease !important;
@@ -2217,12 +2217,12 @@ div[data-testid="stButton"] > button {{
     letter-spacing: -0.01em !important;
 }}
 
-div[data-testid="stButton"] > button * {{
+.nav-buttons-large div[data-testid="stButton"] > button * {{
     font-size: 2rem !important;
     font-weight: 700 !important;
 }}
 
-div[data-testid="stButton"] > button:hover {{
+.nav-buttons-large div[data-testid="stButton"] > button:hover {{
     transform: translateY(-2px) !important;
     box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35) !important;
 }}
@@ -2244,6 +2244,7 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 """, unsafe_allow_html=True)
 
 # --- Large Navigation Buttons (styled via CSS above) ---
+st.markdown('<div class="nav-buttons-large">', unsafe_allow_html=True)
 _btn_col1, _btn_col2 = st.columns([1, 1], gap="small")
 
 with _btn_col1:
@@ -2255,6 +2256,7 @@ with _btn_col2:
     if st.button("📊 Import Data", use_container_width=True, key="btn_import"):
         st.session_state.page_nav = "import"
         st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
@@ -2335,9 +2337,11 @@ if st.session_state.page_nav == "journal":
     """, unsafe_allow_html=True)
 
     # Centered Start Analysis button
+    st.markdown('<div class="nav-buttons-large">', unsafe_allow_html=True)
     _btn_col = st.columns([1, 2, 1])
     with _btn_col[1]:
         start_j_analysis_top = st.button("Start Analysis", type="primary", use_container_width=True, key="j_coach_btn_top")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Previous Journal Analyses (analysis history) ---
     st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
@@ -2876,10 +2880,12 @@ if st.session_state.page_nav == "import":
     st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
     # Centered Start Analysis button
+    st.markdown('<div class="nav-buttons-large">', unsafe_allow_html=True)
     _b_btn_col = st.columns([1, 2, 1])
     with _b_btn_col[1]:
         start_b_analysis = st.button("Start Analysis", type="primary", use_container_width=True,
                                      key="b_coach_btn", disabled=(df is None))
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Previous Broker Analyses (moved to top) ---
     st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
