@@ -2210,7 +2210,7 @@ st.markdown(f"""
 }}
 
 .start-analysis-btn div[data-testid="stButton"] > button * {{
-    font-size: 2rem !important;
+    font-size: 2.5rem !important;
     font-weight: 700 !important;
 }}
 
