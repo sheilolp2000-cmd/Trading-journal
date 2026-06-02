@@ -1833,7 +1833,7 @@ _user_email = st.session_state.get("sb_user_email", "")
 
 # --- Clean Header Bar (always visible) ---
 if _is_authenticated_header and _user_email:
-    # Authenticated: Show Logo | Email + Logout Button
+    # Authenticated: Show Logo | Email + Logout Button (in header)
     header_html = f"""
     <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, rgba(10,14,23,0.98), rgba(10,14,23,0.95)); border-bottom: 2px solid rgba(6,182,212,0.2); backdrop-filter: blur(12px); padding: 18px 40px; display: flex; align-items: center; justify-content: space-between; height: 70px;">
         <div style="font-family: 'Instrument Serif', serif; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">
@@ -1842,25 +1842,13 @@ if _is_authenticated_header and _user_email:
         <div style="display: flex; gap: 20px; align-items: center; justify-content: flex-end;">
             <div style="color: {COLORS['text_dim']}; font-size: 0.9rem;">Logged in as <span style="color: {COLORS['accent_cyan']}; font-weight: 600;">{_user_email}</span></div>
             <div style="width: 1px; height: 24px; background: rgba(6,182,212,0.3);"></div>
+            <button onclick="document.querySelector('[data-testid=\\'stButton\\']')?.click();" style="background: transparent; border: 1px solid {COLORS['accent_cyan']}; color: {COLORS['text_dim']}; padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                Logout
+            </button>
         </div>
     </div>
     <div style="height: 70px;"></div>
-
-    <!-- Logout Button in top right -->
-    <div style="position: fixed; top: 18px; right: 40px; z-index: 1001;">
     """
-    st.markdown(header_html, unsafe_allow_html=True)
-
-    # Logout button as Streamlit button
-    _logout_col1, _logout_col2 = st.columns([5, 1])
-    with _logout_col2:
-        if st.button("Logout", key="logout_btn", use_container_width=True):
-            st.session_state.clear()
-            _clear_session_cookies()
-            st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown(f"<div style='height: 20px'></div>", unsafe_allow_html=True)
 else:
     # Not authenticated: Show Logo | Login + Signup
     header_html = f"""
