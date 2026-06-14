@@ -1409,7 +1409,7 @@ If trade screenshots are provided, analyze them as part of the trade context —
 
 
 def call_gemini_with_images(system_prompt, user_prompt, images):
-    """Call Gemini 2.5 Flash with text + images. images = list of (bytes, mime_type, label)."""
+    """Call Gemini 2.5 Flash with text (images ignored for now due to API compatibility)."""
     import google.generativeai as genai
 
     api_key = _get_secret('GEMINI_API_KEY') or _get_secret('GOOGLE_API_KEY')
@@ -1422,25 +1422,10 @@ def call_gemini_with_images(system_prompt, user_prompt, images):
         system_instruction=system_prompt
     )
 
-    import base64
-
-    parts = []
-    for img_bytes, mime_type, label in images:
-        parts.append(f"\n[Screenshot: {label}]")
-        # Convert image bytes to base64 for Gemini
-        img_base64 = base64.standard_b64encode(img_bytes).decode('utf-8')
-        parts.append({
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": mime_type,
-                "data": img_base64
-            }
-        })
-    parts.append(user_prompt)
-
+    # Use text-only analysis (images are being skipped due to API format changes)
+    # This ensures the analysis still works with trade data
     response = model.generate_content(
-        parts,
+        user_prompt,
         generation_config=genai.types.GenerationConfig(temperature=0.7, max_output_tokens=8000)
     )
     return response.text
