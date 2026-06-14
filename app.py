@@ -2482,6 +2482,12 @@ if st.session_state.page_nav == "journal":
                     st.markdown(analysis_content)
                     st.markdown('</div>', unsafe_allow_html=True)
 
+                    # Enable chat for previous analysis
+                    st.session_state.analysis_result = analysis_content
+                    st.session_state.data_context = f"[Previous Analysis from {sel_j}]"
+                    if 'chat_messages' not in st.session_state:
+                        st.session_state.chat_messages = []
+
     if start_j_analysis_top:
         if _jt_count == 0:
             st.warning("No trades in the journal yet. Log some trades first.")
