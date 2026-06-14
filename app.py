@@ -2364,7 +2364,24 @@ if 'export_files' not in st.session_state:
     st.session_state.export_files = _sb_list_exports(_uid, _token)
 
 # Initialize variables
-ai_model = "Gemini 2.5 Flash (free)"  # Default model
+# AI Model selection
+if 'ai_model' not in st.session_state:
+    st.session_state.ai_model = "Claude 3.5 Sonnet"
+
+# Model selector in sidebar
+with st.sidebar:
+    st.markdown(f"<div style='font-size: 0.9rem; color: {COLORS['text_dim']}; margin-bottom: 12px;'>AI Model</div>", unsafe_allow_html=True)
+    ai_model = st.selectbox(
+        "Choose AI Model",
+        ["Claude 3.5 Sonnet (Screenshot Support ✅)", "Gemini 2.5 Flash (Free)"],
+        index=0 if st.session_state.ai_model == "Claude 3.5 Sonnet" else 1,
+        key="ai_model_select",
+        label_visibility="collapsed"
+    )
+    # Store selection
+    st.session_state.ai_model = "Claude 3.5 Sonnet" if "Claude" in ai_model else "Gemini 2.5 Flash"
+    ai_model = st.session_state.ai_model
+
 selected_export_bytes = None
 
 # --- Load broker data ---
