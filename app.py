@@ -1567,7 +1567,7 @@ def call_claude(system_prompt, user_prompt):
 
     client = Anthropic(api_key=api_key)
     response = client.messages.create(
-        model='claude-sonnet-4-6',
+        model='claude-opus-4-8',
         max_tokens=8000,
         temperature=0.7,
         system=system_prompt,
@@ -1608,7 +1608,7 @@ def call_claude_with_images(system_prompt, user_prompt, images):
     content.append({'type': 'text', 'text': user_prompt})
 
     response = client.messages.create(
-        model='claude-sonnet-4-6',
+        model='claude-opus-4-8',
         max_tokens=8000,
         temperature=0.7,
         system=system_prompt,
@@ -1638,7 +1638,7 @@ def call_claude_chat(chat_history):
         })
 
     response = client.messages.create(
-        model='claude-sonnet-4-6',
+        model='claude-opus-4-8',
         max_tokens=4000,
         temperature=0.7,
         system=chat_history[0]['content'],  # system prompt
@@ -2366,21 +2366,28 @@ if 'export_files' not in st.session_state:
 # Initialize variables
 # AI Model selection
 if 'ai_model' not in st.session_state:
-    st.session_state.ai_model = "Claude 3.5 Sonnet"
+    st.session_state.ai_model = "Claude Opus 4.8"
 
 # Model selector in sidebar
 with st.sidebar:
     st.markdown(f"<div style='font-size: 0.9rem; color: {COLORS['text_dim']}; margin-bottom: 12px;'>AI Model</div>", unsafe_allow_html=True)
-    ai_model = st.selectbox(
+    ai_model_display = st.selectbox(
         "Choose AI Model",
-        ["Claude Sonnet 4.6 (Screenshot Support ✅)", "Gemini 2.5 Flash (Free)"],
-        index=0 if st.session_state.ai_model == "Claude Sonnet 4.6" else 1,
+        ["Claude Opus 4.8 (Best for Charts 🏆)", "Claude Sonnet 4.6 (Fast)", "Gemini 2.5 Flash (Free)"],
+        index=0 if st.session_state.ai_model == "Claude Opus 4.8" else (1 if st.session_state.ai_model == "Claude Sonnet 4.6" else 2),
         key="ai_model_select",
         label_visibility="collapsed"
     )
-    # Store selection
-    st.session_state.ai_model = "Claude Sonnet 4.6" if "Claude" in ai_model else "Gemini 2.5 Flash"
-    ai_model = st.session_state.ai_model
+    # Store selection and get model name
+    if "Opus" in ai_model_display:
+        st.session_state.ai_model = "Claude Opus 4.8"
+        ai_model = "Claude Opus 4.8"
+    elif "Sonnet" in ai_model_display:
+        st.session_state.ai_model = "Claude Sonnet 4.6"
+        ai_model = "Claude Sonnet 4.6"
+    else:
+        st.session_state.ai_model = "Gemini 2.5 Flash"
+        ai_model = "Gemini 2.5 Flash"
 
 selected_export_bytes = None
 
