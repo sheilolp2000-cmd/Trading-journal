@@ -432,24 +432,49 @@ def _sb_upload_screenshot(file_bytes, filename, trade_id, user_id, token):
     except Exception:
         return None
 
-def _download_image_bytes(url):
-    """Download image from URL, return (bytes, mime_type) or (None, None)."""
+def _download_image_bytes(url_or_data):
+    """Download image from URL or decode base64, return (bytes, mime_type) or (None, None)."""
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
-            return resp.read(), content_type
+        # Check if it's base64 data
+        if isinstance(url_or_data, str) and url_or_data.startswith('data:image'):
+            # Parse data URL
+            header, data = url_or_data.split(',', 1)
+            mime_type = header.split(':')[1].split(';')[0]
+            import base64
+            img_bytes = base64.b64decode(data)
+            return img_bytes, mime_type
+
+        # Try as URL
+        if isinstance(url_or_data, str) and (url_or_data.startswith('http://') or url_or_data.startswith('https://')):
+            req = urllib.request.Request(url_or_data, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+                return resp.read(), content_type
     except Exception:
-        return None, None
+        pass
+
+    return None, None
 
 def _collect_trade_screenshots(trades):
-    """Download all screenshots from journal trades, return list of (bytes, mime_type, trade_name)."""
+    """Collect all screenshots from journal trades, return list of (bytes, mime_type, trade_name)."""
     images = []
     for t in trades:
-        for url in t.get("screenshots", []):
-            img_bytes, mime = _download_image_bytes(url)
+        # Screenshots can be URLs, data URLs, or direct binary data
+        for screenshot_data in t.get("screenshots", []):
+            if not screenshot_data:
+                continue
+
+            img_bytes, mime = None, None
+
+            # Try to download/decode the image
+            if isinstance(screenshot_data, str):
+                img_bytes, mime = _download_image_bytes(screenshot_data)
+            elif isinstance(screenshot_data, bytes):
+                img_bytes, mime = screenshot_data, "image/jpeg"
+
             if img_bytes:
                 images.append((img_bytes, mime, t.get("name", "Trade")))
+
     return images
 
 
