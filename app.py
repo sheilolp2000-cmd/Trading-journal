@@ -1434,10 +1434,10 @@ If trade screenshots are provided, analyze them as part of the trade context —
 
 
 def call_gemini_with_images(system_prompt, user_prompt, images):
-    """Call Gemini 2.5 Flash with text + images. images = list of (bytes, mime_type, label)."""
+    """Call Gemini 2.5 Flash with text + images using file upload. images = list of (bytes, mime_type, label)."""
     import google.generativeai as genai
-    from PIL import Image
-    import io
+    import tempfile
+    import os
 
     api_key = _get_secret('GEMINI_API_KEY') or _get_secret('GOOGLE_API_KEY')
     if not api_key:
@@ -1450,25 +1450,49 @@ def call_gemini_with_images(system_prompt, user_prompt, images):
     )
 
     # Build content with text and images
-    content = [user_prompt]
+    content_parts = [user_prompt]
 
-    # Add images if available
+    # Upload and add images if available
+    uploaded_files = []
     if images:
         for img_bytes, mime_type, label in images:
             try:
-                # Convert bytes to PIL Image
-                img = Image.open(io.BytesIO(img_bytes))
-                content.append(f"\n[Screenshot: {label}]")
-                content.append(img)
+                # Create temporary file for image
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+                    tmp.write(img_bytes)
+                    tmp_path = tmp.name
+
+                # Upload file to Gemini
+                uploaded_file = genai.upload_file(tmp_path, mime_type=mime_type)
+                uploaded_files.append(uploaded_file)
+
+                # Add file reference and label to content
+                content_parts.append(f"\n[Trade Screenshot: {label}]")
+                content_parts.append(uploaded_file)
+
+                # Clean up temp file
+                try:
+                    os.unlink(tmp_path)
+                except:
+                    pass
+
             except Exception as e:
                 # If image fails, just add text label
-                content.append(f"\n[Screenshot: {label} - could not load image]")
+                content_parts.append(f"\n[Trade Screenshot: {label} - image unavailable]")
 
-    response = model.generate_content(
-        content,
-        generation_config=genai.types.GenerationConfig(temperature=0.7, max_output_tokens=8000)
-    )
-    return response.text
+    try:
+        response = model.generate_content(
+            content_parts,
+            generation_config=genai.types.GenerationConfig(temperature=0.7, max_output_tokens=8000)
+        )
+        return response.text
+    finally:
+        # Delete uploaded files to clean up quota
+        for file in uploaded_files:
+            try:
+                genai.delete_file(file.name)
+            except:
+                pass
 
 
 def call_gemini(system_prompt, user_prompt):
