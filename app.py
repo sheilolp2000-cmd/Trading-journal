@@ -1422,10 +1422,21 @@ def call_gemini_with_images(system_prompt, user_prompt, images):
         system_instruction=system_prompt
     )
 
+    import base64
+
     parts = []
     for img_bytes, mime_type, label in images:
         parts.append(f"\n[Screenshot: {label}]")
-        parts.append(genai.types.Part.from_bytes(data=img_bytes, mime_type=mime_type))
+        # Convert image bytes to base64 for Gemini
+        img_base64 = base64.standard_b64encode(img_bytes).decode('utf-8')
+        parts.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": mime_type,
+                "data": img_base64
+            }
+        })
     parts.append(user_prompt)
 
     response = model.generate_content(
