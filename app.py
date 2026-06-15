@@ -1445,7 +1445,7 @@ def call_gemini_with_images(system_prompt, user_prompt, images):
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash',
+        model_name='gemini-3-flash-preview',
         system_instruction=system_prompt
     )
 
@@ -1505,7 +1505,7 @@ def call_gemini(system_prompt, user_prompt):
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash',
+        model_name='gemini-3-flash-preview',
         system_instruction=system_prompt
     )
 
@@ -1529,7 +1529,7 @@ def call_gemini_chat(chat_history):
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash',
+        model_name='gemini-3-flash-preview',
         system_instruction=chat_history[0]['content']  # system prompt
     )
 
@@ -2382,23 +2382,23 @@ if 'export_files' not in st.session_state:
 # AI Model selection — Gemini is the default/free model.
 # Claude models are shown but locked behind a paywall (disabled for now).
 if 'ai_model' not in st.session_state:
-    st.session_state.ai_model = "Gemini 2.5 Flash"
+    st.session_state.ai_model = "Gemini 3 Flash"
 
 # Model selector in sidebar
 with st.sidebar:
     st.markdown(f"<div style='font-size: 0.9rem; color: {COLORS['text_dim']}; margin-bottom: 12px;'>AI Model</div>", unsafe_allow_html=True)
     ai_model_display = st.selectbox(
         "Choose AI Model",
-        ["Gemini 2.5 Flash (Free)", "🔒 Claude Opus 4.8 (Paid — coming soon)", "🔒 Claude Sonnet 4.6 (Paid — coming soon)"],
+        ["Gemini 3 Flash (Free)", "🔒 Claude Opus 4.8 (Paid — coming soon)", "🔒 Claude Sonnet 4.6 (Paid — coming soon)"],
         index=0,
         key="ai_model_select",
         label_visibility="collapsed"
     )
     # Claude models are locked behind a paywall — disabled for now, always fall back to Gemini.
     if "Claude" in ai_model_display:
-        st.info("🔒 Claude-Modelle sind bald als Paid-Option verfügbar. Es wird vorerst **Gemini 2.5 Flash (Free)** verwendet.")
-    st.session_state.ai_model = "Gemini 2.5 Flash"
-    ai_model = "Gemini 2.5 Flash"
+        st.info("🔒 Claude-Modelle sind bald als Paid-Option verfügbar. Es wird vorerst **Gemini 3 Flash (Free)** verwendet.")
+    st.session_state.ai_model = "Gemini 3 Flash"
+    ai_model = "Gemini 3 Flash"
 
 selected_export_bytes = None
 
