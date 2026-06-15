@@ -1434,7 +1434,7 @@ If trade screenshots are provided, analyze them as part of the trade context —
 
 
 def call_gemini_with_images(system_prompt, user_prompt, images):
-    """Call Gemini 2.5 Flash with text + images using file upload. images = list of (bytes, mime_type, label)."""
+    """Call Gemini 3 Flash with text + images using file upload. images = list of (bytes, mime_type, label)."""
     import google.generativeai as genai
     import tempfile
     import os
@@ -1496,7 +1496,7 @@ def call_gemini_with_images(system_prompt, user_prompt, images):
 
 
 def call_gemini(system_prompt, user_prompt):
-    """Call Gemini 2.5 Flash for analysis."""
+    """Call Gemini 3 Flash for analysis."""
     import google.generativeai as genai
 
     api_key = _get_secret('GEMINI_API_KEY') or _get_secret('GOOGLE_API_KEY')
@@ -1520,7 +1520,7 @@ def call_gemini(system_prompt, user_prompt):
 
 
 def call_gemini_chat(chat_history):
-    """Call Gemini 2.5 Flash with full chat history."""
+    """Call Gemini 3 Flash with full chat history."""
     import google.generativeai as genai
 
     api_key = _get_secret('GEMINI_API_KEY') or _get_secret('GOOGLE_API_KEY')
