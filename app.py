@@ -1779,7 +1779,22 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
         if has_data:
             cum = trades_df.copy()
             cum['date'] = pd.to_datetime(cum['date'])
-            cum = cum.sort_values('date').reset_index(drop=True)
+            cum = cum.sort_values('date', kind='stable').reset_index(drop=True)
+            # Journal trades are date-only → multiple trades on the same day would
+            # stack on one x-coordinate and collapse the curve. If there is no
+            # intraday time info, spread same-day trades across the day by their
+            # order so each trade renders as a distinct point. Broker data (which
+            # has real timestamps) is left untouched.
+            _has_time = (
+                cum['date'].dt.hour.ne(0)
+                | cum['date'].dt.minute.ne(0)
+                | cum['date'].dt.second.ne(0)
+            ).any()
+            if not _has_time and len(cum) > 1:
+                _day = cum['date'].dt.normalize()
+                _seq = cum.groupby(_day).cumcount()
+                _cnt = cum.groupby(_day)['pnl'].transform('size')
+                cum['date'] = _day + pd.to_timedelta((_seq + 1) / (_cnt + 1) * 24.0, unit='h')
             cum['Cumulative PnL'] = cum['pnl'].cumsum()
             _start_date = cum['date'].iloc[0] - timedelta(days=1)
             cum_pts = pd.concat([
