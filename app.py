@@ -2364,30 +2364,26 @@ if 'export_files' not in st.session_state:
     st.session_state.export_files = _sb_list_exports(_uid, _token)
 
 # Initialize variables
-# AI Model selection
+# AI Model selection — Gemini is the default/free model.
+# Claude models are shown but locked behind a paywall (disabled for now).
 if 'ai_model' not in st.session_state:
-    st.session_state.ai_model = "Claude Opus 4.8"
+    st.session_state.ai_model = "Gemini 2.5 Flash"
 
 # Model selector in sidebar
 with st.sidebar:
     st.markdown(f"<div style='font-size: 0.9rem; color: {COLORS['text_dim']}; margin-bottom: 12px;'>AI Model</div>", unsafe_allow_html=True)
     ai_model_display = st.selectbox(
         "Choose AI Model",
-        ["Claude Opus 4.8 (Best for Charts 🏆)", "Claude Sonnet 4.6 (Fast)", "Gemini 2.5 Flash (Free)"],
-        index=0 if st.session_state.ai_model == "Claude Opus 4.8" else (1 if st.session_state.ai_model == "Claude Sonnet 4.6" else 2),
+        ["Gemini 2.5 Flash (Free)", "🔒 Claude Opus 4.8 (Paid — coming soon)", "🔒 Claude Sonnet 4.6 (Paid — coming soon)"],
+        index=0,
         key="ai_model_select",
         label_visibility="collapsed"
     )
-    # Store selection and get model name
-    if "Opus" in ai_model_display:
-        st.session_state.ai_model = "Claude Opus 4.8"
-        ai_model = "Claude Opus 4.8"
-    elif "Sonnet" in ai_model_display:
-        st.session_state.ai_model = "Claude Sonnet 4.6"
-        ai_model = "Claude Sonnet 4.6"
-    else:
-        st.session_state.ai_model = "Gemini 2.5 Flash"
-        ai_model = "Gemini 2.5 Flash"
+    # Claude models are locked behind a paywall — disabled for now, always fall back to Gemini.
+    if "Claude" in ai_model_display:
+        st.info("🔒 Claude-Modelle sind bald als Paid-Option verfügbar. Es wird vorerst **Gemini 2.5 Flash (Free)** verwendet.")
+    st.session_state.ai_model = "Gemini 2.5 Flash"
+    ai_model = "Gemini 2.5 Flash"
 
 selected_export_bytes = None
 
