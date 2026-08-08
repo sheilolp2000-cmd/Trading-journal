@@ -412,7 +412,7 @@ def _sb_delete_export(path, token):
         pass
 
 def _sb_upload_screenshot(file_bytes, filename, trade_id, user_id, token):
-    """Upload image to Supabase Storage, return public URL or None."""
+    """Upload image to Supabase Storage (private bucket), return the storage path or None."""
     import mimetypes
     safe_filename = filename.replace(" ", "_")
     content_type = mimetypes.guess_type(safe_filename)[0] or "image/jpeg"
@@ -428,9 +428,32 @@ def _sb_upload_screenshot(file_bytes, filename, trade_id, user_id, token):
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             resp.read()
-        return f"{_SB_URL}/storage/v1/object/public/Trade%20screenshot/{urllib.parse.quote(path)}"
+        return path
     except Exception:
         return None
+
+_SCREENSHOT_PUBLIC_PREFIX = f"{_SB_URL}/storage/v1/object/public/Trade%20screenshot/"
+
+def _sb_signed_url(bucket, path, token, expires_in=3600):
+    """Create a short-lived signed URL for a private bucket object. Returns URL or None."""
+    url = f"{_SB_URL}/storage/v1/object/sign/{bucket}/{urllib.parse.quote(path)}"
+    data, code = _http("POST", url, _sb_headers(token), {"expiresIn": expires_in})
+    if code == 200 and "signedURL" in data:
+        return f"{_SB_URL}/storage/v1{data['signedURL']}"
+    return None
+
+def _resolve_screenshot_url(stored_value, token):
+    """Turn a stored screenshot reference (bare path, or a legacy public URL from
+    before the bucket was made private) into a fresh signed URL."""
+    if not stored_value:
+        return None
+    path = stored_value
+    if stored_value.startswith("http"):
+        if _SCREENSHOT_PUBLIC_PREFIX in stored_value:
+            path = urllib.parse.unquote(stored_value.split(_SCREENSHOT_PUBLIC_PREFIX, 1)[1])
+        else:
+            return stored_value  # unrecognized absolute URL — pass through as-is
+    return _sb_signed_url("Trade%20screenshot", path, token) or stored_value
 
 def _download_image_bytes(url_or_data):
     """Download image from URL or decode base64, return (bytes, mime_type) or (None, None)."""
@@ -455,20 +478,21 @@ def _download_image_bytes(url_or_data):
 
     return None, None
 
-def _collect_trade_screenshots(trades):
+def _collect_trade_screenshots(trades, token=None):
     """Collect all screenshots from journal trades, return list of (bytes, mime_type, trade_name)."""
     images = []
     for t in trades:
-        # Screenshots can be URLs, data URLs, or direct binary data
+        # Screenshots are stored as bare storage paths (or legacy public URLs) —
+        # resolve to a fresh signed URL before downloading.
         for screenshot_data in t.get("screenshots", []):
             if not screenshot_data:
                 continue
 
             img_bytes, mime = None, None
 
-            # Try to download/decode the image
             if isinstance(screenshot_data, str):
-                img_bytes, mime = _download_image_bytes(screenshot_data)
+                resolved = _resolve_screenshot_url(screenshot_data, token) if token else screenshot_data
+                img_bytes, mime = _download_image_bytes(resolved)
             elif isinstance(screenshot_data, bytes):
                 img_bytes, mime = screenshot_data, "image/jpeg"
 
@@ -498,619 +522,306 @@ COLORS = {
 # --- Professional Trading Design CSS ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap');
-    /* === LIQUID GLASS CLASS === */
-    .liquid-glass {{
-        background: rgba(255, 255, 255, 0.01);
-        background-blend-mode: luminosity;
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
-        border: none;
-        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-        position: relative;
-        overflow: hidden;
-        border-radius: 14px;
-    }}
-    .liquid-glass::before {{
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        padding: 1.4px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        pointer-events: none;
-    }}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    /* === GLOBAL === */
-    * {{
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }}
+:root {
+    --bg: #05070d;
+    --surface: #0d1117;
+    --surface-2: #131a26;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --accent: #06b6d4;
+    --accent-2: #8b5cf6;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e6edf3;
+    --text-dim: #94a3b8;
+    --text-bright: #ffffff;
+}
 
-    body, .stApp {{
-        background: #000000;
-        color: #ffffff;
-        letter-spacing: 0;
-    }}
+* { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
-    /* Main content area */
-    .main .block-container {{
-        padding-top: 3rem;
-        padding-left: 3rem;
-        padding-right: 3rem;
-        padding-bottom: 3rem;
-        max-width: 1600px;
-    }}
+body, .stApp { background: var(--bg); color: var(--text); }
 
-    /* === HEADER === */
-    .hero-title {{
-        font-size: 3.5rem;
-        font-weight: 800;
-        font-family: 'Instrument Serif', serif;
-        color: #ffffff;
-        letter-spacing: -0.01em;
-        margin-bottom: 1.5rem;
-        margin-top: 0;
-        line-height: 1.1;
-    }}
-    .hero-subtitle {{
-        color: #cbd5e1;
-        font-size: 1.1rem;
-        font-weight: 400;
-        margin-top: 0;
-        margin-bottom: 2rem;
-        line-height: 1.6;
-    }}
+.main .block-container {
+    padding: 1.5rem 3rem 4rem 3rem;
+    max-width: 1440px;
+    margin: 0 auto;
+}
 
-    /* Hide import URL and unwanted markdown */
-    .main [data-testid="stMarkdown"]:first-of-type {{
-        display: none !important;
-    }}
+/* --- Hide Streamlit chrome + sidebar --- */
+#MainMenu, footer, header { visibility: hidden; }
+[data-testid="stSidebar"], [data-testid="collapsedControl"] { display: none !important; }
 
-    /* Hide Sidebar Completely - Aggressive */
-    [data-testid="stSidebar"] {{
-        position: fixed !important;
-        left: -9999px !important;
-        display: none !important;
-        width: 0 !important;
-        min-width: 0 !important;
-        max-width: 0 !important;
-        visibility: hidden !important;
-        overflow: hidden !important;
-    }}
-    [data-testid="stSidebar"] * {{
-        display: none !important;
-        visibility: hidden !important;
-    }}
-    .stSidebar {{
-        display: none !important;
-        width: 0 !important;
-    }}
-    section[data-testid="stSidebar"] {{
-        display: none !important;
-    }}
+/* --- Metric cards --- */
+[data-testid="stMetric"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.4rem;
+    transition: border-color 0.2s ease;
+}
+[data-testid="stMetric"]:hover { border-color: var(--border-strong); }
+[data-testid="stMetric"] label {
+    color: var(--text-dim) !important;
+    font-size: 0.72rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: var(--text-bright) !important;
+    font-size: 1.7rem !important;
+    font-weight: 700;
+    line-height: 1.2;
+}
 
-    /* Hide sidebar toggle/collapse button */
-    [data-testid="collapsedControl"] {{
-        display: none !important;
-    }}
-    button[kind="header"] {{
-        display: none !important;
-    }}
+/* --- Tabs --- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0;
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 0;
+    color: var(--text-dim);
+    font-weight: 500;
+    padding: 0.7rem 1.4rem;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.stTabs [data-baseweb="tab"]:hover { color: var(--text-bright) !important; background: transparent; }
+.stTabs [aria-selected="true"] {
+    background: transparent !important;
+    color: var(--text-bright) !important;
+    border-bottom: 2px solid var(--accent) !important;
+}
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display: none; }
 
-    /* Expand main content to full width */
-    .main {{
-        width: 100% !important;
-        margin-left: 0 !important;
-        padding: 0 !important;
-    }}
-    .block-container {{
-        padding-left: 3rem !important;
-        padding-right: 3rem !important;
-        max-width: 100% !important;
-        width: 100% !important;
-    }}
+/* --- Buttons --- */
+.stButton > button {
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 0.55rem 1.1rem !important;
+    transition: all 0.15s ease;
+    box-shadow: none;
+}
+.stButton > button:hover {
+    border-color: var(--accent) !important;
+    color: var(--text-bright) !important;
+    background: var(--surface-2) !important;
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #06b6d4, #0e7490) !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+.stButton > button[kind="primary"]:hover {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(6, 182, 212, 0.25);
+}
 
-    /* === METRIC CARDS === */
-    [data-testid="stMetric"] {{
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 2rem;
-        box-shadow: none;
-        transition: all 0.3s ease;
-    }}
-    [data-testid="stMetric"]:hover {{
-        border-color: rgba(255, 255, 255, 0.15);
-        background: rgba(255, 255, 255, 0.02);
-    }}
-    [data-testid="stMetric"] label {{
-        color: #94a3b8 !important;
-        font-size: 0.75rem !important;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        font-weight: 600;
-        margin-bottom: 0.8rem;
-    }}
-    [data-testid="stMetric"] [data-testid="stMetricValue"] {{
-        color: #ffffff !important;
-        font-size: 2.2rem !important;
-        font-weight: 700;
-        line-height: 1.2;
-    }}
-    [data-testid="stMetric"] [data-testid="stMetricDelta"] {{
-        font-size: 0.85rem !important;
-        margin-top: 0.5rem;
-    }}
+/* Prominent Start Analysis buttons */
+.st-key-j_coach_btn_top button, .st-key-b_coach_btn_top button {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    padding: 0.9rem 1.5rem !important;
+    border-radius: 12px !important;
+}
 
-    /* === TABS === */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 0;
-        background: transparent;
-        border-radius: 0;
-        padding: 0;
-        border: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        margin-bottom: 2rem;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        border-radius: 0;
-        color: #94a3b8;
-        font-weight: 500;
-        padding: 1rem 2rem;
-        font-size: 0.95rem;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-    }}
-    .stTabs [data-baseweb="tab"]:hover {{
-        color: #f8fafc !important;
-        background: transparent;
-    }}
-    .stTabs [aria-selected="true"] {{
-        background: transparent !important;
-        color: #ffffff !important;
-        border-bottom: 2px solid #06b6d4 !important;
-    }}
-    .stTabs [data-baseweb="tab-highlight"] {{
-        display: none;
-    }}
-    .stTabs [data-baseweb="tab-border"] {{
-        display: none;
-    }}
+/* --- Inputs --- */
+.stTextInput input, .stNumberInput input, .stTextArea textarea, .stDateInput input {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 10px !important;
+    caret-color: var(--text-bright);
+}
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus, .stDateInput input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent) !important;
+}
+[data-baseweb="input"], [data-baseweb="textarea"] {
+    background: transparent !important;
+    border: none !important;
+}
+.stTextInput input::placeholder, .stTextArea textarea::placeholder { color: #5b6878 !important; }
+.stNumberInput button {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-dim) !important;
+}
+label, .stSelectbox label, .stMultiSelect label {
+    color: var(--text-dim) !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+}
 
-    /* === SIDEBAR === */
-    [data-testid="stSidebar"] {{
-        background: #000000;
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
-        padding-top: 2rem;
-    }}
-    [data-testid="stSidebar"] .stMarkdown h2 {{
-        color: #f8fafc;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        font-weight: 700;
-        margin-top: 2rem;
-        margin-bottom: 1.2rem;
-    }}
-    [data-testid="stSidebar"] .stMarkdown h2:first-of-type {{
-        margin-top: 0;
-    }}
+/* --- Select / dropdowns --- */
+[data-baseweb="select"] > div {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    color: var(--text) !important;
+}
+[data-baseweb="select"] span { color: var(--text) !important; }
+[data-baseweb="select"] svg { fill: var(--text-dim) !important; }
+[data-baseweb="popover"] > div, [data-baseweb="popover"] [role="listbox"] {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+}
+[data-baseweb="popover"] li, [role="option"] { color: var(--text) !important; background: transparent !important; }
+[data-baseweb="popover"] li:hover, [role="option"]:hover { background: rgba(255, 255, 255, 0.06) !important; }
+[aria-selected="true"][role="option"] { background: rgba(6, 182, 212, 0.12) !important; }
 
-    /* === BUTTONS === */
-    .stButton > button {{
-        color: #ffffff !important;
-        background: #06b6d4 !important;
-        border: none !important;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        padding: 0.75rem 1.5rem !important;
-        transition: all 0.2s ease;
-    }}
-    .stButton > button:hover {{
-        color: #ffffff !important;
-        background: #0891b2 !important;
-        transform: translateY(-1px);
-    }}
-    .stButton > button[kind="primary"] {{
-        background: #06b6d4 !important;
-        color: #ffffff !important;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        padding: 0.75rem 1.5rem !important;
-        transition: all 0.2s ease;
-    }}
-    .stButton > button[kind="primary"]:hover {{
-        color: #ffffff !important;
-        background: #0891b2 !important;
-        transform: translateY(-1px);
-    }}
+/* Multiselect tags */
+[data-baseweb="tag"] {
+    background: rgba(139, 92, 246, 0.15) !important;
+    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    color: #c4b5fd !important;
+    border-radius: 6px !important;
+}
+[data-baseweb="tag"] span { color: #c4b5fd !important; }
 
-    /* REMOVED: Don't style ALL buttons globally - only specific ones */
+/* --- File uploader --- */
+[data-testid="stFileUploaderDropzone"] {
+    background: var(--surface) !important;
+    border: 1px dashed var(--border-strong) !important;
+    border-radius: 12px !important;
+}
+[data-testid="stFileUploader"] label { color: var(--text-dim) !important; }
+[data-testid="stFileUploader"] span { color: var(--text-dim) !important; }
+[data-testid="stFileUploaderDropzone"] button {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 8px !important;
+}
 
-    /* Calendar navigation arrows - no background */
-    [data-testid="stButton"] button:has-text('◀'),
-    [data-testid="stButton"] button:has-text('▶') {{
-        background: transparent !important;
-        border: none !important;
-        color: {COLORS['text_bright']} !important;
-        font-weight: 600 !important;
-    }}
+/* --- Popover trigger (calendar jump) --- */
+[data-testid="stPopover"] button {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 10px !important;
+}
 
-    [data-testid="stButton"] button:has-text('◀'):hover,
-    [data-testid="stButton"] button:has-text('▶'):hover {{
-        background: transparent !important;
-        color: {COLORS['accent_cyan']} !important;
-    }}
+/* --- Checkbox / radio --- */
+.stCheckbox label span, .stRadio label span { color: var(--text) !important; }
 
-    /* Start Analysis Button - Override with Pure Purple */
-    [data-testid="stButton"] button:has-text('Start Analysis'),
-    button:has-text('Start Analysis') {{
-        background: linear-gradient(135deg, #8b5cf6, #a855f7) !important;
-        color: #ffffff !important;
-        border: none !important;
-        font-weight: 700 !important;
-        font-size: 1.1rem !important;
-        padding: 16px 24px !important;
-        border-radius: 10px !important;
-    }}
-    button:has-text('Start Analysis'):hover {{
-        background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
-        transform: translateY(-2px);
-    }}
+/* --- Markdown / typography --- */
+.stMarkdown, .stMarkdown p { color: #cbd5e1 !important; font-size: 0.95rem; line-height: 1.65; }
+.stMarkdown li { color: #cbd5e1 !important; }
+.stMarkdown h1 { color: var(--text-bright) !important; font-size: 2rem !important; font-weight: 700 !important; letter-spacing: -0.02em; margin: 1.5rem 0 1rem !important; }
+.stMarkdown h2 { color: var(--text-bright) !important; font-size: 1.5rem !important; font-weight: 600 !important; letter-spacing: -0.01em; margin: 1.4rem 0 0.8rem !important; }
+.stMarkdown h3 { color: var(--text-bright) !important; font-size: 1.15rem !important; font-weight: 600 !important; margin: 1rem 0 0.5rem !important; }
+.stMarkdown h4 { color: var(--text) !important; font-size: 1rem !important; font-weight: 600 !important; }
+.stMarkdown strong { color: var(--text-bright) !important; font-weight: 700; }
+.stMarkdown a { color: var(--accent) !important; text-decoration: none; }
+.stMarkdown a:hover { text-decoration: underline; }
+.stMarkdown table { border-collapse: collapse; width: 100%; }
+.stMarkdown th, .stMarkdown td { border: 1px solid var(--border-strong) !important; padding: 9px 13px !important; color: var(--text) !important; font-size: 0.88rem; }
+.stMarkdown th { background: rgba(255, 255, 255, 0.04) !important; color: var(--text-bright) !important; font-weight: 600; }
 
-    /* === GENERAL TEXT OVERRIDES === */
-    .stMarkdown, .stMarkdown p {{
-        color: #cbd5e1 !important;
-        font-size: 0.95rem;
-        line-height: 1.6;
-    }}
-    .stMarkdown li {{
-        color: #cbd5e1 !important;
-    }}
-    .stMarkdown td, .stMarkdown th {{
-        color: #e2e8f0 !important;
-    }}
-    .stMarkdown h1 {{
-        color: #ffffff !important;
-        font-size: 2.5rem !important;
-        font-weight: 700 !important;
-        margin-top: 2rem !important;
-        margin-bottom: 1rem !important;
-    }}
-    .stMarkdown h2 {{
-        color: #ffffff !important;
-        font-size: 1.8rem !important;
-        font-weight: 600 !important;
-        margin-top: 1.5rem !important;
-        margin-bottom: 0.8rem !important;
-    }}
-    .stMarkdown h3 {{
-        color: #f8fafc !important;
-        font-size: 1.3rem !important;
-        font-weight: 600 !important;
-        margin-top: 1rem !important;
-        margin-bottom: 0.5rem !important;
-    }}
-    .stMarkdown h4 {{
-        color: #e2e8f0 !important;
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-    }}
-    .stMarkdown strong {{
-        color: #ffffff !important;
-        font-weight: 700;
-    }}
-    .stMarkdown a {{
-        color: #06b6d4 !important;
-        text-decoration: none;
-    }}
-    .stMarkdown a:hover {{
-        text-decoration: underline;
-    }}
+/* --- Dividers --- */
+hr { border-color: var(--border) !important; margin: 1.5rem 0 !important; }
 
-    /* Checkbox & selectbox text */
-    .stCheckbox label span, .stSelectbox label {{
-        color: #e2e8f0 !important;
-    }}
-    /* Sidebar radio labels */
-    [data-testid="stSidebar"] .stRadio label, [data-testid="stSidebar"] .stRadio label p,
-    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label span {{
-        color: #f8fafc !important;
-    }}
-    /* Sidebar general text */
-    [data-testid="stSidebar"] .stCheckbox label span,
-    [data-testid="stSidebar"] .stSelectbox label,
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] label {{
-        color: #f8fafc !important;
-    }}
-    /* Selectbox styling */
-    [data-baseweb="select"] {{
-        background: rgba(255, 255, 255, 0.01) !important;
-        -webkit-backdrop-filter: blur(4px) !important;
-        backdrop-filter: blur(4px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 12px !important;
-    }}
-    [data-baseweb="select"] > div {{
-        background: rgba(255, 255, 255, 0.01) !important;
-        color: #e2e8f0 !important;
-        border: none !important;
-    }}
-    [data-baseweb="select"] span {{
-        color: #e2e8f0 !important;
-    }}
-    [data-baseweb="select"] svg {{
-        fill: #94a3b8 !important;
-    }}
-    /* Dropdown menu */
-    [data-baseweb="popover"] {{
-        background: rgba(255, 255, 255, 0.01) !important;
-        -webkit-backdrop-filter: blur(4px) !important;
-        backdrop-filter: blur(4px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 12px !important;
-    }}
-    [data-baseweb="popover"] li {{
-        color: #e2e8f0 !important;
-        background: transparent !important;
-    }}
-    [data-baseweb="popover"] li:hover {{
-        background: rgba(255, 255, 255, 0.1) !important;
-    }}
-    [role="option"] {{
-        color: #e2e8f0 !important;
-    }}
-    [aria-selected="true"] {{
-        background: rgba(59, 130, 246, 0.15) !important;
-    }}
+/* --- Expander --- */
+[data-testid="stExpander"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+[data-testid="stExpander"] summary { background: transparent !important; color: var(--text-bright) !important; padding: 12px 16px; }
+[data-testid="stExpander"] summary:hover { background: rgba(255, 255, 255, 0.04) !important; }
+[data-testid="stExpander"] summary span { color: var(--text-bright) !important; }
+[data-testid="stExpander"] summary svg { fill: var(--text) !important; }
+[data-testid="stExpander"] [data-testid="stExpanderDetails"] { background: var(--surface); border-top: 1px solid var(--border); }
 
-    /* File uploader text */
-    [data-testid="stFileUploader"] label {{
-        color: #e2e8f0 !important;
-    }}
-    [data-testid="stFileUploader"] span {{
-        color: #94a3b8 !important;
-    }}
+/* --- Plotly charts --- */
+.stPlotlyChart {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+}
 
-    /* Data editor outer wrapper */
-    [data-testid="stDataEditor"] > div {{
-        border-radius: 16px !important;
-        border: 1px solid rgba(6, 182, 212, 0.35) !important;
-        box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.08), 0 4px 24px rgba(0,0,0,0.4) !important;
-        overflow: hidden !important;
-    }}
+/* --- Analysis container --- */
+.analysis-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin-top: 16px;
+}
+.analysis-box table { border-collapse: collapse; width: 100%; }
+.analysis-box th, .analysis-box td { border: 1px solid var(--border-strong) !important; padding: 9px 13px !important; color: var(--text) !important; }
+.analysis-box th { background: rgba(255, 255, 255, 0.04) !important; color: var(--text-bright) !important; font-weight: 600; }
 
-    /* Success/Warning/Info boxes */
-    .stAlert {{
-        border-radius: 12px;
-    }}
+/* --- Alerts --- */
+.stAlert {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px;
+    color: var(--text) !important;
+}
 
-    /* Spinner text */
-    .stSpinner > div {{
-        color: #e2e8f0 !important;
-    }}
+/* --- Chat input --- */
+[data-testid="stChatInput"] {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+}
+[data-testid="stChatInput"] textarea, [data-testid="stChatInput"] input {
+    color: var(--text-bright) !important;
+    background: transparent !important;
+    caret-color: var(--text-bright) !important;
+}
+[data-testid="stChatInput"] textarea::placeholder { color: #5b6878 !important; }
+[data-testid="stChatInput"] button { color: var(--accent) !important; }
+.stChatFloatingInputContainer, [data-testid="stBottom"] { background: var(--bg) !important; }
+[data-testid="stBottom"] > div { background: var(--bg) !important; }
 
-    /* === DIVIDERS === */
-    hr {{
-        border-color: rgba(255, 255, 255, 0.1) !important;
-        margin: 1.5rem 0 !important;
-    }}
+/* --- Spinner --- */
+.stSpinner > div { color: var(--text) !important; }
 
-    /* === EXPANDER === */
-    [data-testid="stExpander"] {{
-        background: rgba(255, 255, 255, 0.01);
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        overflow: hidden;
-    }}
-    [data-testid="stExpander"] summary {{
-        background: transparent !important;
-        color: #f8fafc !important;
-        padding: 12px 16px;
-    }}
-    [data-testid="stExpander"] summary:hover {{
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: #f8fafc !important;
-    }}
-    [data-testid="stExpander"] summary span {{
-        color: #f8fafc !important;
-    }}
-    [data-testid="stExpander"] summary svg {{
-        fill: #e2e8f0 !important;
-        color: #e2e8f0 !important;
-    }}
-    [data-testid="stExpander"] [data-testid="stExpanderDetails"] {{
-        background: #000000;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }}
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
-    /* === PLOTLY CHARTS === */
-    .stPlotlyChart {{
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        overflow: hidden;
-    }}
+/* --- Trade card chevron button --- */
+.trade-card-btn button {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-dim) !important;
+    padding: 8px 4px !important;
+    font-size: 1.1rem !important;
+    height: 100% !important;
+}
+.trade-card-btn button:hover { color: var(--accent) !important; }
 
-    /* === ANALYSIS CONTAINER === */
-    .analysis-box {{
-        background: rgba(255, 255, 255, 0.01);
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 32px;
-        margin-top: 16px;
-        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-    }}
-    .analysis-box table {{
-        border-collapse: collapse;
-        width: 100%;
-    }}
-    .analysis-box th, .analysis-box td {{
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        padding: 10px 14px !important;
-        color: #e2e8f0 !important;
-    }}
-    .analysis-box th {{
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: #f8fafc !important;
-        font-weight: 600;
-    }}
-
-    /* General table styling */
-    .stMarkdown table {{
-        border-collapse: collapse;
-        width: 100%;
-    }}
-    .stMarkdown th, .stMarkdown td {{
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        padding: 10px 14px !important;
-        color: #e2e8f0 !important;
-    }}
-    .stMarkdown th {{
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: #f8fafc !important;
-        font-weight: 600;
-    }}
-
-    /* === LONG/SHORT CARDS === */
-    .direction-card {{
-        background: rgba(255, 255, 255, 0.01);
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 24px;
-        text-align: center;
-    }}
-    .direction-long {{ border-left: 3px solid #10b981; }}
-    .direction-short {{ border-left: 3px solid #ef4444; }}
-
-    /* === INFO BOX === */
-    .landing-card {{
-        background: rgba(255, 255, 255, 0.01);
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-        padding: 48px;
-        text-align: center;
-        margin: 40px auto;
-        max-width: 700px;
-        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-    }}
-    .landing-card h3 {{
-        color: #f8fafc;
-        font-size: 1.4rem;
-        margin-bottom: 16px;
-        font-family: 'Instrument Serif', serif;
-    }}
-    .landing-card p {{
-        color: #e2e8f0;
-        font-size: 0.95rem;
-        line-height: 1.7;
-    }}
-
-    /* === CHAT INPUT === */
-    [data-testid="stChatInput"] {{
-        background: rgba(255, 255, 255, 0.01) !important;
-        -webkit-backdrop-filter: blur(4px) !important;
-        backdrop-filter: blur(4px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 14px !important;
-    }}
-    [data-testid="stChatInput"] textarea,
-    [data-testid="stChatInput"] input,
-    .stChatInput textarea,
-    .stChatInput input {{
-        color: #ffffff !important;
-        background: transparent !important;
-        caret-color: #ffffff !important;
-    }}
-    [data-testid="stChatInput"] textarea::placeholder,
-    .stChatInput textarea::placeholder {{
-        color: #94a3b8 !important;
-    }}
-    [data-testid="stChatInput"] button {{
-        color: #06b6d4 !important;
-    }}
-    .stChatFloatingInputContainer {{
-        background: #000000 !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    }}
-    [data-testid="stBottom"] {{
-        background: #000000 !important;
-    }}
-
-    /* === SCROLLBAR === */
-    ::-webkit-scrollbar {{ width: 6px; }}
-    ::-webkit-scrollbar-track {{ background: #000000; }}
-    ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.1); border-radius: 3px; }}
-    ::-webkit-scrollbar-thumb:hover {{ background: #94a3b8; }}
-
-    /* === HIDE STREAMLIT DEFAULTS === */
-    #MainMenu {{ visibility: hidden; }}
-    footer {{ visibility: hidden; }}
-    header {{ visibility: hidden; }}
-
-    /* === TRADE CARDS === */
-    .trade-card-btn button {{
-        background: rgba(255, 255, 255, 0.01) !important;
-        border: none !important;
-        color: #94a3b8 !important;
-        padding: 8px 4px !important;
-        font-size: 1.2rem !important;
-        min-height: 0 !important;
-        height: 100% !important;
-        border-radius: 0 10px 10px 0 !important;
-    }}
-    .trade-card-btn button:hover {{
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: #06b6d4 !important;
-    }}
-
-    /* === DETAIL PANEL === */
-    .detail-panel {{
-        background: rgba(255, 255, 255, 0.01);
-        -webkit-backdrop-filter: blur(4px);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(6, 182, 212, 0.2);
-        border-radius: 16px;
-        padding: 24px;
-        animation: slideInRight 0.25s ease-out;
-    }}
-    @keyframes slideInRight {{
-        from {{ opacity: 0; transform: translateX(30px); }}
-        to {{ opacity: 1; transform: translateX(0); }}
-    }}
-    .detail-field {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }}
-    .detail-field:last-child {{
-        border-bottom: none;
-    }}
-    .detail-label {{
-        color: #94a3b8;
-        font-size: 0.85rem;
-    }}
-    .detail-value {{
-        color: #f8fafc;
-        font-weight: 500;
-        font-size: 0.9rem;
-    }}
+/* --- Detail panel fields --- */
+.detail-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.detail-field:last-child { border-bottom: none; }
+.detail-label { color: var(--text-dim); font-size: 0.84rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1118,8 +829,8 @@ st.markdown("""
 # --- Plotly Theme ---
 PLOTLY_LAYOUT = dict(
     template='none',
-    paper_bgcolor='#111827',
-    plot_bgcolor='#0a0e17',
+    paper_bgcolor='#0d1117',
+    plot_bgcolor='#0d1117',
     font=dict(color='#e2e8f0', family='Inter, system-ui, sans-serif', size=13),
     title=dict(font=dict(size=17, color='#ffffff', family='Inter, system-ui, sans-serif')),
     xaxis=dict(
@@ -1431,6 +1142,65 @@ All 9 sections are mandatory. Skip NONE. Section 2 (Focus Plan) is the most impo
 If trade screenshots are provided, analyze them as part of the trade context — look at chart patterns, entry/exit points, market structure, and any visible mistakes or good decisions. Reference specific screenshots in your analysis where relevant.
 """
     return system_prompt, data_summary
+
+
+def build_candle_ai_prompt(journal_trades, screenshot_count=0):
+    """Build the pre-entry candle-reading prompt (vision-only pass over trade screenshots)."""
+    prompt_path = Path(__file__).parent / "candle_analysis_prompt.md"
+    system_prompt = prompt_path.read_text(encoding='utf-8')
+
+    jt = [t for t in journal_trades if t.get('screenshots')]
+    if not jt:
+        return system_prompt, ""
+
+    data = ["## Trades attached as screenshots\n",
+            "Metadata is context only. Read the CHARTS — if they disagree, report the disagreement.\n"]
+    for t in jt:
+        data.append(
+            f"- **{t.get('name','?')}** | {t.get('pair','')} | {t.get('direction','')} | "
+            f"opened {t.get('open','')} | journal says: {t.get('profit_loss','?')} "
+            f"({t.get('gross_pnl',0)} USDT) | strategy: {t.get('strategy','') or '—'} | "
+            f"{len(t.get('screenshots', []))} screenshot(s)"
+        )
+        if t.get('additions'):
+            data.append(f"  - trader's note: {t['additions']}")
+
+    data.append(f"""
+---
+
+You have been given {screenshot_count} screenshot(s), each labelled with its trade name.
+
+Do the pre-entry candle analysis now, exactly in the format from your system prompt.
+
+Work through the screenshots ONE AT A TIME. For each: locate the left edge of the
+position box first, then read the ~20 candles to the LEFT of it. Only after every
+screenshot has its own reading do you write the Cross-Trade Pattern section.
+
+Report honestly what you can and cannot resolve in each image.""")
+    return system_prompt, "\n".join(data)
+
+
+def _collect_candle_screenshots(trades, token=None):
+    """Like _collect_trade_screenshots but labels each image with its trade context."""
+    images = []
+    for t in trades:
+        _shots = t.get("screenshots", []) or []
+        for _i, screenshot_data in enumerate(_shots):
+            if not screenshot_data:
+                continue
+
+            img_bytes, mime = None, None
+            if isinstance(screenshot_data, str):
+                resolved = _resolve_screenshot_url(screenshot_data, token) if token else screenshot_data
+                img_bytes, mime = _download_image_bytes(resolved)
+            elif isinstance(screenshot_data, bytes):
+                img_bytes, mime = screenshot_data, "image/jpeg"
+
+            if img_bytes:
+                _label = (f"{t.get('name', 'Trade')} | {t.get('pair', '')} "
+                          f"{t.get('direction', '')} | image {_i + 1} of {len(_shots)}")
+                images.append((img_bytes, mime, _label))
+    return images
 
 
 def call_gemini_with_images(system_prompt, user_prompt, images):
@@ -2037,118 +1807,39 @@ def render_analytics(trades_df, stats_dict, tab_prefix=''):
 _is_authenticated_header = _restore_session_from_cookies()
 _user_email = st.session_state.get("sb_user_email", "")
 
-# --- Clean Header Bar (Magic UI Style) - Logo only ---
+# --- Top Bar ---
+_topbar_right = (
+    f'<span style="color:#64748b;font-size:0.8rem;">{_html.escape(_user_email)}</span>'
+    if _user_email else
+    '<span style="color:#64748b;font-size:0.8rem;">AI Trading Journal</span>'
+)
 st.markdown(f"""
-<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0, 0, 0, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; height: 60px;">
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 1.1rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.01em;">
-        Hindsight Edge
+<div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(5, 7, 13, 0.88); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 32px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, #06b6d4, #8b5cf6);"></div>
+        <span style="font-size: 1rem; font-weight: 700; color: #ffffff; letter-spacing: -0.01em;">Hindsight Edge</span>
     </div>
+    {_topbar_right}
 </div>
-<div style="height: 60px;"></div>
+<div style="height: 64px;"></div>
 """, unsafe_allow_html=True)
 
-# --- Hero Section (visible to everyone) ---
-_hero_col1, _hero_col2, _hero_col3 = st.columns([1, 3, 1], gap="large")
-
-with _hero_col2:
-    import base64
-    import os
-
-    hero_html = f"""
-    <div class="hero-3d-container" style="perspective: 1000px; width: 100%; min-height: 400px;">
-        <div id="heroCard" class="hero-card" style="text-align: center; padding: 140px 80px; background: linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(139,92,246,0.1) 100%), linear-gradient(180deg, rgba(10,14,23,0.7) 0%, rgba(10,14,23,0.85) 100%); border-radius: 32px; position: relative; overflow: hidden; border: 1px solid rgba(6,182,212,0.2); transition: transform 0.3s ease-out; transform-style: preserve-3d;">
-            <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139,92,246,0.06) 0%, transparent 50%); animation: drift 25s ease-in-out infinite; pointer-events: none;"></div>
-            <div style="position: relative; z-index: 10;">
-                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif; font-size: 7rem; font-weight: 600; color: #ffffff; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 32px; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);">
-                    Your Trading Intelligence Platform
-                </div>
-                <div style="font-size: 1.15rem; color: rgba(255, 255, 255, 0.85); max-width: 750px; margin: 0 auto; line-height: 1.8; font-weight: 300; letter-spacing: 0.3px; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);">
-                    Unlock data-driven insights into your trading patterns with AI-powered analysis and real-time portfolio tracking.
-                </div>
-            </div>
-        </div>
+# --- Hero (only shown to logged-out visitors) ---
+if not _is_authenticated_header:
+    st.markdown("""
+    <div style="text-align: center; padding: 64px 24px 40px;">
+        <div style="display: inline-block; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); color: #22d3ee; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 14px; border-radius: 999px; margin-bottom: 28px;">AI-Powered Trading Journal</div>
+        <h1 style="font-size: 3.4rem; font-weight: 800; color: #ffffff; letter-spacing: -0.03em; line-height: 1.12; margin: 0 0 20px;">Know exactly why you win &mdash;<br>and why you lose.</h1>
+        <p style="font-size: 1.05rem; color: #94a3b8; max-width: 580px; margin: 0 auto; line-height: 1.7;">Import your broker trades, journal your setups, and let AI surface the patterns that cost you money.</p>
     </div>
-
-    <style>
-        @keyframes drift {{
-            0%, 100% {{ transform: translate(0, 0); }}
-            50% {{ transform: translate(40px, -40px); }}
-        }}
-
-        .hero-3d-container {{
-            perspective: 1000px;
-        }}
-
-        .hero-card {{
-            transition: transform 0.6s cubic-bezier(0.23, 1, 0.320, 1) !important;
-            transform-style: preserve-3d !important;
-            will-change: transform;
-        }}
-
-        .hero-card:hover {{
-            transform: rotateX(5deg) rotateY(-8deg) translateZ(20px) !important;
-            box-shadow: 0 20px 60px rgba(6, 182, 212, 0.3) !important;
-        }}
-    </style>
-
-    <script>
-        const heroCard = document.getElementById('heroCard');
-        const container = document.querySelector('.hero-3d-container');
-
-        if (heroCard && container) {{
-            container.addEventListener('mousemove', (e) => {{
-                const rect = container.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-
-                const rotateX = (y - centerY) / 10;
-                const rotateY = -(x - centerX) / 10;
-
-                heroCard.style.transform = `rotateX(${{rotateX}}deg) rotateY(${{rotateY}}deg) translateZ(30px)`;
-                heroCard.style.boxShadow = `0 30px 80px rgba(6, 182, 212, ${{0.2 + Math.abs(rotateX) * 0.02}})`;
-            }});
-
-            container.addEventListener('mouseleave', () => {{
-                heroCard.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0px)';
-                heroCard.style.boxShadow = '0 10px 30px rgba(6, 182, 212, 0.1)';
-            }});
-        }}
-    </script>
-    """
-    st.markdown(hero_html, unsafe_allow_html=True)
-
-# Spacer
-st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # --- Auth Check (after hero) ---
 _is_authenticated = _restore_session_from_cookies()
 
 if not _is_authenticated:
-    # Non-authenticated: Show CTA button that triggers login
-    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
     _cta_col1, _cta_col2, _cta_col3 = st.columns([1, 1.2, 1])
     with _cta_col2:
-        st.markdown(f"""
-        <div style="text-align: center;">
-            <button onclick="document.querySelector('[data-testid=\\'stButton\\']').click()" style="background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); color: white; border: none; padding: 20px 64px; border-radius: 14px; font-size: 1.15rem; font-weight: 700; cursor: pointer; letter-spacing: -0.01em; transition: all 0.3s ease; box-shadow: 0 8px 32px rgba(6,182,212,0.25); hover: box-shadow: 0 12px 48px rgba(6,182,212,0.35);">
-                Start Your Trading Journal
-            </button>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Centered login/signup section
-        st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="text-align: center; color: {COLORS['text_dim']}; font-size: 0.95rem;">
-            or sign in below
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
-
         _lt, _st = st.tabs(["Login", "Sign Up"])
         with _lt:
             st.markdown(f"<div style='font-size: 0.95rem; color: {COLORS['text_bright']}; font-weight: 600; margin-bottom: 16px;'>Login to Your Account</div>", unsafe_allow_html=True)
@@ -2280,82 +1971,21 @@ if 'chat_messages' not in st.session_state:
 if 'data_context' not in st.session_state:
     st.session_state.data_context = None
 
-# --- Page Navigation with Tabs ---
+# --- Page Navigation ---
 if 'page_nav' not in st.session_state:
     st.session_state.page_nav = "journal"
-
-# --- Large Navigation Buttons with Gradient (instead of tabs) ---
 _current_page = st.session_state.get('page_nav', 'journal')
 
-# Inject CSS to style the buttons with larger font and gradient
+_nav_active = "background: rgba(6, 182, 212, 0.12) !important; border: 1px solid rgba(6, 182, 212, 0.5) !important; color: #ffffff !important;"
+_nav_idle = "background: transparent !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #94a3b8 !important;"
+
 st.markdown(f"""
 <style>
-/* Large Start Analysis buttons (for journal tab) */
-.start-analysis-btn div[data-testid="stButton"] > button {{
-    padding: 20px 16px !important;
-    border-radius: 12px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
-    letter-spacing: -0.01em !important;
-}}
-
-.start-analysis-btn div[data-testid="stButton"] > button * {{
-    font-size: 2.5rem !important;
-    font-weight: 700 !important;
-}}
-
-.start-analysis-btn div[data-testid="stButton"] > button:hover {{
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35) !important;
-}}
-
-/* Extra large Start Analysis button for Import Data tab (top) */
-.start-analysis-btn-import div[data-testid="stButton"] > button {{
-    padding: 20px 16px !important;
-    border-radius: 12px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
-    letter-spacing: -0.01em !important;
-}}
-
-.start-analysis-btn-import div[data-testid="stButton"] > button * {{
-    font-size: 2.5rem !important;
-    font-weight: 700 !important;
-}}
-
-.start-analysis-btn-import div[data-testid="stButton"] > button:hover {{
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35) !important;
-}}
-
-/* Journal button gradient */
-/* Journal button gradient with large font */
-div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton"] > button {{
-    background: linear-gradient(135deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}) !important;
-    border: 2px solid {COLORS['accent_cyan']} !important;
-    color: {COLORS['text_bright']} !important;
-}}
-
-div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton"] > button * {{
-    font-size: 3rem !important;
-    font-weight: 700 !important;
-}}
-
-/* Import button gradient with large font */
-div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"] > button {{
-    background: linear-gradient(135deg, {COLORS['accent_purple']}, {COLORS['accent_cyan']}) !important;
-    border: 2px solid {COLORS['accent_purple']} !important;
-    color: {COLORS['text_bright']} !important;
-}}
-
-div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"] > button * {{
-    font-size: 3rem !important;
-    font-weight: 700 !important;
-}}
+.st-key-btn_journal button {{ {_nav_active if _current_page == 'journal' else _nav_idle} font-size: 0.95rem !important; font-weight: 600 !important; padding: 0.85rem 1rem !important; border-radius: 12px !important; }}
+.st-key-btn_import button {{ {_nav_active if _current_page == 'import' else _nav_idle} font-size: 0.95rem !important; font-weight: 600 !important; padding: 0.85rem 1rem !important; border-radius: 12px !important; }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- Large Navigation Buttons (Streamlit buttons with CSS styling) ---
 _btn_col1, _btn_col2 = st.columns([1, 1], gap="small")
 
 with _btn_col1:
@@ -2368,7 +1998,7 @@ with _btn_col2:
         st.session_state.page_nav = "import"
         st.rerun()
 
-st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
 
 # --- No sidebar (all state managed via tabs) ---
 # Tab state is handled by Streamlit automatically
@@ -2384,21 +2014,20 @@ if 'export_files' not in st.session_state:
 if 'ai_model' not in st.session_state:
     st.session_state.ai_model = "Gemini 3 Flash"
 
-# Model selector in sidebar
-with st.sidebar:
-    st.markdown(f"<div style='font-size: 0.9rem; color: {COLORS['text_dim']}; margin-bottom: 12px;'>AI Model</div>", unsafe_allow_html=True)
+# AI model selector (compact, right-aligned below the nav)
+_mdl_spacer, _mdl_col = st.columns([2.4, 1])
+with _mdl_col:
     ai_model_display = st.selectbox(
-        "Choose AI Model",
+        "AI Model",
         ["Gemini 3 Flash (Free)", "🔒 Claude Opus 4.8 (Paid — coming soon)", "🔒 Claude Sonnet 4.6 (Paid — coming soon)"],
         index=0,
         key="ai_model_select",
-        label_visibility="collapsed"
     )
     # Claude models are locked behind a paywall — disabled for now, always fall back to Gemini.
     if "Claude" in ai_model_display:
-        st.info("🔒 Claude-Modelle sind bald als Paid-Option verfügbar. Es wird vorerst **Gemini 3 Flash (Free)** verwendet.")
-    st.session_state.ai_model = "Gemini 3 Flash"
-    ai_model = "Gemini 3 Flash"
+        st.caption("🔒 Claude-Modelle kommen bald als Paid-Option — vorerst wird Gemini 3 Flash (Free) verwendet.")
+st.session_state.ai_model = "Gemini 3 Flash"
+ai_model = "Gemini 3 Flash"
 
 selected_export_bytes = None
 
@@ -2439,21 +2068,99 @@ if df is not None:
     trades = parse_trades(df)
     stats = compute_stats(trades)
 
-# --- Hindsight Edge Title (above tabs, centered) ---
-st.markdown(f"""
-<div style="text-align: center; margin-bottom: 24px; margin-top: 12px;">
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; font-size: 2.2rem; font-weight: 600; color: {COLORS['text_bright']}; letter-spacing: -0.02em;">
-        Hindsight Edge
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # =====================================================
 # PAGE: JOURNAL
 # =====================================================
 if st.session_state.page_nav == "journal":
-    _jt_coach = st.session_state.journal_trades
+    # =====================================================
+    # STRATEGY FOLDERS — scopes trade list, analytics and AI analysis
+    # =====================================================
+    ALL_STRATEGIES = "All Strategies"
+
+    default_strategies = ["Trend + Trend", "Trend + Reverse", "Reversal", "Breakout", "Scalping", "Swing Trading", "Position Trading"]
+    default_confluences = [
+        "Strong Entry", "Weak Entry", "1H STDV 1", "1H VWAP",
+        "4h Vwap Sync", "1D Vwap Sync No", "1D Vwap sync",
+        "FIB 0.38", "FIB 0.5", "FIB 0.61", "FIB No",
+        "TP Edge", "More Profit", "5Min VWAP 1 Rejection"
+    ]
+
+    if 'custom_strategies' not in st.session_state:
+        st.session_state.custom_strategies = []
+
+    existing_strategies = set(default_strategies) | set(st.session_state.custom_strategies)
+    existing_confluences = set(default_confluences)
+    for t in st.session_state.journal_trades:
+        if t.get('strategy'):
+            existing_strategies.add(t['strategy'])
+        for c in t.get('confluences', []):
+            existing_confluences.add(c)
+    all_strategies = sorted(existing_strategies)
+    all_confluences = sorted(existing_confluences)
+
+    # A newly created folder is applied here, before the widget renders —
+    # Streamlit forbids writing a widget's own key after instantiation.
+    if 'pending_strategy_filter' in st.session_state:
+        st.session_state.j_strategy_filter_box = st.session_state.pop('pending_strategy_filter')
+
+    _strategy_options = [ALL_STRATEGIES] + all_strategies
+    if st.session_state.get('j_strategy_filter_box') not in _strategy_options:
+        st.session_state.j_strategy_filter_box = ALL_STRATEGIES
+
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <div style="width: 3px; height: 28px; background: linear-gradient(180deg, {COLORS['accent_cyan']}, {COLORS['accent_purple']}); border-radius: 2px;"></div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: {COLORS['text_bright']};">Strategy</div>
+        <div style="font-size: 0.8rem; color: {COLORS['text_dim']}; margin-left: 8px;">— a separate journal per strategy</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _fc1, _fc2 = st.columns([4, 1])
+    with _fc1:
+        st.selectbox("Strategy filter", _strategy_options, label_visibility="collapsed", key="j_strategy_filter_box")
+    with _fc2:
+        if st.button("＋ New", key="j_new_strategy_btn", use_container_width=True, help="Create a new strategy folder"):
+            st.session_state.show_new_strategy = not st.session_state.get('show_new_strategy', False)
+
+    if st.session_state.get('show_new_strategy'):
+        _nc1, _nc2, _nc3 = st.columns([4, 1, 1])
+        with _nc1:
+            _new_strat_name = st.text_input("New strategy", value="", placeholder="e.g. Reverse Strategy",
+                                            label_visibility="collapsed", key="j_new_strategy_name")
+        with _nc2:
+            if st.button("Create", key="j_create_strategy", type="primary", use_container_width=True):
+                _name = (_new_strat_name or "").strip()
+                if not _name:
+                    st.warning("Enter a name for the strategy.")
+                elif _name == ALL_STRATEGIES or _name in all_strategies:
+                    st.info(f"Strategy '{_name}' already exists.")
+                else:
+                    st.session_state.custom_strategies.append(_name)
+                    st.session_state.pending_strategy_filter = _name
+                    st.session_state.show_new_strategy = False
+                    st.session_state.viewing_trade_id = None
+                    st.rerun()
+        with _nc3:
+            if st.button("Cancel", key="j_cancel_strategy", use_container_width=True):
+                st.session_state.show_new_strategy = False
+                st.rerun()
+
+    _active_strategy = st.session_state.j_strategy_filter_box
+    _strategy_scoped = _active_strategy != ALL_STRATEGIES
+
+    def _in_active_strategy(_t):
+        return (not _strategy_scoped) or (_t.get('strategy') or '') == _active_strategy
+
+    # Everything below this point operates on the selected folder only.
+    _jt_coach = [t for t in st.session_state.journal_trades if _in_active_strategy(t)]
     _jt_count = len(_jt_coach)
+
+    _scope_label = _active_strategy if _strategy_scoped else "all strategies"
+    st.markdown(
+        f'<div style="font-size:0.78rem;color:{COLORS["text_dim"]};margin:10px 0 28px 0;">'
+        f'Showing <b style="color:{COLORS["text_bright"]};">{_jt_count}</b> trade(s) — '
+        f'list, analytics and AI analysis are scoped to <b style="color:{COLORS["accent_cyan"]};">{_html.escape(str(_scope_label))}</b>.'
+        f'</div>', unsafe_allow_html=True)
 
     # =====================================================
     # TRADING JOURNAL - HINDSIGHT EDGE ANALYSIS
@@ -2467,11 +2174,18 @@ if st.session_state.page_nav == "journal":
     """, unsafe_allow_html=True)
 
     # Centered Start Analysis button
-    st.markdown('<div class="start-analysis-btn">', unsafe_allow_html=True)
     _btn_col = st.columns([1, 2, 1])
     with _btn_col[1]:
         start_j_analysis_top = st.button("⚡ Start Analysis", type="primary", use_container_width=True, key="j_coach_btn_top")
-    st.markdown('</div>', unsafe_allow_html=True)
+        _shots_available = sum(len(t.get('screenshots') or []) for t in _jt_coach)
+        _want_candles = st.checkbox(
+            f"🕯 Add pre-entry candle analysis ({_shots_available} screenshot(s))",
+            value=True,
+            key="j_candle_toggle",
+            disabled=(_shots_available == 0),
+            help="A second AI pass that reads only the candles before each entry. "
+                 "Costs an extra API call and takes longer.",
+        )
 
     # --- Previous Journal Analyses (analysis history) ---
     st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
@@ -2525,28 +2239,53 @@ if st.session_state.page_nav == "journal":
 
     if start_j_analysis_top:
         if _jt_count == 0:
-            st.warning("No trades in the journal yet. Log some trades first.")
+            if _strategy_scoped:
+                st.warning(f"No trades in '{_active_strategy}' yet. Log trades in this strategy first, or switch to '{ALL_STRATEGIES}'.")
+            else:
+                st.warning("No trades in the journal yet. Log some trades first.")
         else:
             sys_p, dat_p = build_journal_ai_prompt(_jt_coach)
+            _token_j = st.session_state.get('sb_access_token', '')
+            _is_claude = "Claude" in ai_model
             with st.spinner("AI is analyzing your journal trades..."):
-                if "Claude" in ai_model:
-                    _screenshots = _collect_trade_screenshots(_jt_coach)
+                _screenshots = _collect_trade_screenshots(_jt_coach, _token_j)
+                if _is_claude:
                     if _screenshots:
                         _analysis = call_claude_with_images(sys_p, dat_p, _screenshots)
                     else:
                         _analysis = call_claude(sys_p, dat_p)
                 else:
-                    _screenshots = _collect_trade_screenshots(_jt_coach)
                     if _screenshots:
                         _analysis = call_gemini_with_images(sys_p, dat_p, _screenshots)
                     else:
                         _analysis = call_gemini(sys_p, dat_p)
-            st.session_state.analysis_result = _analysis
-            st.session_state.data_context = dat_p
+
+            # --- Second pass: pre-entry candle reading (vision only) ---
+            if _want_candles:
+                _candle_imgs = _collect_candle_screenshots(_jt_coach, _token_j)
+                if not _candle_imgs:
+                    _analysis += ("\n\n---\n\n## 🕯 Pre-Entry Candle Analysis\n\n"
+                                  "*No screenshots could be loaded for these trades, so the candle "
+                                  "analysis was skipped.*\n")
+                else:
+                    _c_sys, _c_dat = build_candle_ai_prompt(_jt_coach, len(_candle_imgs))
+                    with st.spinner(f"Reading the candles before each entry ({len(_candle_imgs)} screenshot(s))..."):
+                        try:
+                            if _is_claude:
+                                _candle_out = call_claude_with_images(_c_sys, _c_dat, _candle_imgs)
+                            else:
+                                _candle_out = call_gemini_with_images(_c_sys, _c_dat, _candle_imgs)
+                        except Exception as _ce:
+                            _candle_out = f"*Candle analysis failed: {_ce}*"
+                    _analysis += "\n\n---\n\n" + _candle_out
+
+            _scope_note = f"*Scope: {_scope_label} — {_jt_count} trade(s)*\n\n"
+            st.session_state.analysis_result = _scope_note + _analysis
+            st.session_state.data_context = f"[Strategy scope: {_scope_label}]\n{dat_p}"
             st.session_state.chat_messages = []
             _out = Path(__file__).parent / "analyses"
             _out.mkdir(exist_ok=True)
-            (_out / f"journal_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.md").write_text(_analysis, encoding='utf-8')
+            (_out / f"journal_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.md").write_text(_scope_note + _analysis, encoding='utf-8')
             st.rerun()
 
     # =====================================================
@@ -2615,27 +2354,11 @@ Answer follow-up questions directly and concretely using numbers from the data. 
 
     st.markdown("<div style='height: 40px'></div>", unsafe_allow_html=True)
 
-    default_strategies = ["Trend + Trend", "Trend + Reverse", "Reversal", "Breakout", "Scalping", "Swing Trading", "Position Trading"]
-    default_confluences = [
-        "Strong Entry", "Weak Entry", "1H STDV 1", "1H VWAP",
-        "4h Vwap Sync", "1D Vwap Sync No", "1D Vwap sync",
-        "FIB 0.38", "FIB 0.5", "FIB 0.61", "FIB No",
-        "TP Edge", "More Profit", "5Min VWAP 1 Rejection"
-    ]
-
-    existing_strategies = set(default_strategies)
-    existing_confluences = set(default_confluences)
-    for t in st.session_state.journal_trades:
-        if t.get('strategy') and t['strategy'] not in existing_strategies:
-            existing_strategies.add(t['strategy'])
-        for c in t.get('confluences', []):
-            existing_confluences.add(c)
-    all_strategies = sorted(existing_strategies)
-    all_confluences = sorted(existing_confluences)
-
     if st.button("+ Add New Trade", key="add_trade_btn"):
         st.session_state.show_add_form = not st.session_state.show_add_form
         st.session_state.editing_index = None
+        # Drop the stale widget value so the active folder can prefill the field
+        st.session_state.pop('j_strat', None)
 
     if st.session_state.show_add_form or st.session_state.editing_index is not None:
         editing = st.session_state.editing_index is not None
@@ -2667,7 +2390,9 @@ Answer follow-up questions directly and concretely using numbers from the data. 
                 trade_session = st.selectbox("Session", session_options, index=session_options.index(edit_data['session']) if edit_data.get('session') in session_options else 0, key="j_session")
             with r2c3:
                 strat_options = [""] + all_strategies
-                trade_strategy = st.selectbox("Strategy", strat_options, index=strat_options.index(edit_data['strategy']) if edit_data.get('strategy') in strat_options else 0, key="j_strat")
+                # New trades default into the folder that is currently selected
+                _strat_default = edit_data.get('strategy') if editing else (_active_strategy if _strategy_scoped else '')
+                trade_strategy = st.selectbox("Strategy", strat_options, index=strat_options.index(_strat_default) if _strat_default in strat_options else 0, key="j_strat")
             with r2c4:
                 custom_strategy = st.text_input("Custom Strategy", value="", placeholder="Or enter custom...", key="j_custom_strat")
 
@@ -2697,19 +2422,22 @@ Answer follow-up questions directly and concretely using numbers from the data. 
             existing_screenshots = list(edit_data.get('screenshots', []))
 
             # Show existing screenshots with delete option
+            _screenshot_token = st.session_state.get('sb_access_token', '')
             if existing_screenshots:
                 thumb_cols = st.columns(min(len(existing_screenshots), 4))
                 to_remove = []
                 for i, url in enumerate(existing_screenshots):
                     with thumb_cols[i % 4]:
-                        st.image(url, use_container_width=True)
+                        st.image(_resolve_screenshot_url(url, _screenshot_token), use_container_width=True)
                         if st.button("🗑", key=f"del_img_{i}", help="Remove screenshot"):
                             to_remove.append(url)
                 for url in to_remove:
                     existing_screenshots.remove(url)
 
+            _MAX_SCREENSHOT_MB = 8
+            _MAX_SCREENSHOTS_PER_TRADE = 10
             uploaded_screenshots = st.file_uploader(
-                "Add screenshots (PNG, JPG, WEBP)",
+                f"Add screenshots (PNG, JPG, WEBP — max {_MAX_SCREENSHOT_MB} MB each, {_MAX_SCREENSHOTS_PER_TRADE} per trade)",
                 type=["png", "jpg", "jpeg", "webp"],
                 accept_multiple_files=True,
                 key="j_screenshots"
@@ -2731,8 +2459,14 @@ Answer follow-up questions directly and concretely using numbers from the data. 
                     token = st.session_state.get('sb_access_token', '')
                     user_id = st.session_state.get('sb_user_id', '')
                     if uploaded_screenshots and token and user_id:
+                        _slots_left = _MAX_SCREENSHOTS_PER_TRADE - len(new_urls)
+                        if len(uploaded_screenshots) > _slots_left:
+                            st.warning(f"Only {max(_slots_left, 0)} more screenshot(s) allowed for this trade (max {_MAX_SCREENSHOTS_PER_TRADE}) — extra files skipped.")
                         with st.spinner("Uploading screenshots..."):
-                            for f in uploaded_screenshots:
+                            for f in uploaded_screenshots[:max(_slots_left, 0)]:
+                                if f.size > _MAX_SCREENSHOT_MB * 1024 * 1024:
+                                    st.warning(f"Skipped {f.name}: exceeds {_MAX_SCREENSHOT_MB} MB limit.")
+                                    continue
                                 url = _sb_upload_screenshot(f.read(), f.name, trade_id, user_id, token)
                                 if url:
                                     new_urls.append(url)
@@ -2775,15 +2509,18 @@ Answer follow-up questions directly and concretely using numbers from the data. 
     # --- Journal Trade List (styled cards) + Detail Panel ---
     st.markdown("<div style='height: 16px'></div>", unsafe_allow_html=True)
 
-    _all_trades = st.session_state.journal_trades
+    _all_trades = _jt_coach
     _viewing_id = st.session_state.get('viewing_trade_id')
     _viewing_trade = None
     _viewing_idx = None
     if _viewing_id:
-        for _vi, _vt in enumerate(_all_trades):
+        # Resolve against the FULL list: _viewing_idx feeds edit/delete, which
+        # index into st.session_state.journal_trades, not into the filtered view.
+        for _vi, _vt in enumerate(st.session_state.journal_trades):
             if _vt.get('id') == _viewing_id:
-                _viewing_trade = _vt
-                _viewing_idx = _vi
+                if _in_active_strategy(_vt):
+                    _viewing_trade = _vt
+                    _viewing_idx = _vi
                 break
         if not _viewing_trade:
             st.session_state.viewing_trade_id = None
@@ -2797,7 +2534,11 @@ Answer follow-up questions directly and concretely using numbers from the data. 
 
     with _list_col:
         if not _all_trades:
-            st.markdown(f'<div style="text-align:center;color:{COLORS["text_dim"]};padding:48px 20px;"><div style="font-size:2rem;margin-bottom:8px;opacity:0.5;">📓</div><div>No trades yet. Click <b style="color:{COLORS["text_bright"]};">+ Add New Trade</b> to get started.</div></div>', unsafe_allow_html=True)
+            if _strategy_scoped:
+                _empty_msg = f'No trades in <b style="color:{COLORS["accent_cyan"]};">{_html.escape(str(_active_strategy))}</b> yet. Click <b style="color:{COLORS["text_bright"]};">+ Add New Trade</b> — it lands in this folder automatically.'
+            else:
+                _empty_msg = f'No trades yet. Click <b style="color:{COLORS["text_bright"]};">+ Add New Trade</b> to get started.'
+            st.markdown(f'<div style="text-align:center;color:{COLORS["text_dim"]};padding:48px 20px;"><div style="font-size:2rem;margin-bottom:8px;opacity:0.5;">📓</div><div>{_empty_msg}</div></div>', unsafe_allow_html=True)
         else:
             st.markdown(f'<div style="display:flex;align-items:center;padding:8px 16px;margin-bottom:4px;"><span style="flex:2;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Trade</span><span style="flex:1;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Pair / Session</span><span style="flex:1;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Strategy</span><span style="flex:1;color:{COLORS["text_dim"]};font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;text-align:right;">PnL</span><span style="width:40px;"></span></div>', unsafe_allow_html=True)
 
@@ -2909,8 +2650,9 @@ Answer follow-up questions directly and concretely using numbers from the data. 
             _screenshots = _viewing_trade.get('screenshots', [])
             if _screenshots:
                 st.markdown(f'<div style="margin-top:14px;font-size:0.75rem;color:{COLORS["text_dim"]};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Screenshots</div>', unsafe_allow_html=True)
+                _detail_token = st.session_state.get('sb_access_token', '')
                 for _surl in _screenshots:
-                    st.image(_surl, use_container_width=True)
+                    st.image(_resolve_screenshot_url(_surl, _detail_token), use_container_width=True)
 
             # Edit / Delete
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
@@ -2937,7 +2679,7 @@ Answer follow-up questions directly and concretely using numbers from the data. 
     </div>
     """, unsafe_allow_html=True)
 
-    jt = st.session_state.journal_trades
+    jt = _jt_coach
     _j_trades_df, _j_stats = journal_to_trades_and_stats(jt)
     render_analytics(_j_trades_df, _j_stats)
 
@@ -2963,34 +2705,10 @@ if st.session_state.page_nav == "import":
 
     # --- Upload Section ---
     # Centered Start Analysis button (at top, same as Trading Journal)
-    st.markdown('<div class="start-analysis-btn-import">', unsafe_allow_html=True)
     _b_btn_col_top = st.columns([1, 2, 1])
     with _b_btn_col_top[1]:
         start_b_analysis = st.button("⚡ Start Analysis", type="primary", use_container_width=True,
                                      key="b_coach_btn_top", disabled=(df is None))
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # JavaScript to make Import Data Start Analysis button larger
-    st.markdown(f"""
-    <script>
-    setTimeout(function() {{
-        // Find button with b_coach_btn_top key and increase font size
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(btn => {{
-            if (btn.getAttribute('data-testid') === 'stButton' && btn.textContent.includes('Start Analysis')) {{
-                const checkIfImportButton = btn.closest('.start-analysis-btn-import');
-                if (checkIfImportButton) {{
-                    const spans = btn.querySelectorAll('span, div');
-                    spans.forEach(span => {{
-                        span.style.fontSize = '3.5rem !important';
-                        span.style.fontWeight = '700 !important';
-                    }});
-                }}
-            }}
-        }});
-    }}, 100);
-    </script>
-    """, unsafe_allow_html=True)
 
     st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
 

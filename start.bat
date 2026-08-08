@@ -1,4 +1,4 @@
 @echo off
-cd /d "d:\Workflows\Business idea generator\trading-journal-prototype"
+cd /d "%~dp0"
 streamlit run app.py
 pause

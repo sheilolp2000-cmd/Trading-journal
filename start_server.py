@@ -4,7 +4,7 @@ import time
 import os
 import sys
 
-os.chdir(r"d:\Workflows\Business idea generator\trading-journal-prototype")
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 print("[*] Starting Trading Journal App...")
 print("[*] URL: http://localhost:8501")
