@@ -469,12 +469,17 @@ def _download_image_bytes(url_or_data):
 
         # Try as URL
         if isinstance(url_or_data, str) and (url_or_data.startswith('http://') or url_or_data.startswith('https://')):
-            req = urllib.request.Request(url_or_data, headers={"User-Agent": "Mozilla/5.0"})
+            headers = {"User-Agent": "Mozilla/5.0"}
+            if _SB_URL and url_or_data.startswith(_SB_URL):
+                # Supabase Storage rejects non-browser requests without an apikey header,
+                # even for otherwise-valid signed URLs.
+                headers["apikey"] = _SB_KEY
+            req = urllib.request.Request(url_or_data, headers=headers)
             with urllib.request.urlopen(req, timeout=15) as resp:
                 content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
                 return resp.read(), content_type
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  [_download_image_bytes] failed for {url_or_data[:80] if isinstance(url_or_data, str) else url_or_data!r}: {e}")
 
     return None, None
 
