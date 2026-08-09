@@ -293,6 +293,17 @@ def _sb_login(email, password):
     return _http("POST", f"{_SB_URL}/auth/v1/token?grant_type=password", _sb_headers(),
                  {"email": email, "password": password})
 
+def _sb_get_user_metadata(token):
+    """Fetch the current user's user_metadata (small per-user preferences, no extra table needed)."""
+    data, code = _http("GET", f"{_SB_URL}/auth/v1/user", _sb_headers(token))
+    if code == 200 and isinstance(data, dict):
+        return data.get("user_metadata", {}) or {}
+    return {}
+
+def _sb_update_user_metadata(token, metadata):
+    """Merge-update the current user's user_metadata."""
+    _http("PUT", f"{_SB_URL}/auth/v1/user", _sb_headers(token), {"data": metadata})
+
 def _sb_logout(token):
     try:
         _http("POST", f"{_SB_URL}/auth/v1/logout", _sb_headers(token), timeout=10)
@@ -2087,7 +2098,7 @@ if st.session_state.page_nav == "journal":
     # =====================================================
     ALL_STRATEGIES = "All Strategies"
 
-    default_strategies = ["Trend + Trend", "Trend + Reverse", "Reversal", "Breakout", "Scalping", "Swing Trading", "Position Trading"]
+    default_strategies = ["Trend", "Reversal", "Breakout"]
     default_confluences = [
         "Strong Entry", "Weak Entry", "1H STDV 1", "1H VWAP",
         "4h Vwap Sync", "1D Vwap Sync No", "1D Vwap sync",
@@ -2095,8 +2106,13 @@ if st.session_state.page_nav == "journal":
         "TP Edge", "More Profit", "5Min VWAP 1 Rejection"
     ]
 
+    # Custom strategy folders are stored in Supabase user_metadata so they survive
+    # session resets — previously they only lived in st.session_state and silently
+    # disappeared once the session was gone (unless a trade already used the name).
+    _strat_token = st.session_state.get('sb_access_token', '')
     if 'custom_strategies' not in st.session_state:
-        st.session_state.custom_strategies = []
+        _remote_meta = _sb_get_user_metadata(_strat_token) if _strat_token else {}
+        st.session_state.custom_strategies = _remote_meta.get('custom_strategies', []) or []
 
     existing_strategies = set(default_strategies) | set(st.session_state.custom_strategies)
     existing_confluences = set(default_confluences)
@@ -2146,6 +2162,8 @@ if st.session_state.page_nav == "journal":
                     st.info(f"Strategy '{_name}' already exists.")
                 else:
                     st.session_state.custom_strategies.append(_name)
+                    if _strat_token:
+                        _sb_update_user_metadata(_strat_token, {"custom_strategies": st.session_state.custom_strategies})
                     st.session_state.pending_strategy_filter = _name
                     st.session_state.show_new_strategy = False
                     st.session_state.viewing_trade_id = None
