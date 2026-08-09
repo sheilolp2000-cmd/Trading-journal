@@ -123,23 +123,7 @@ Identify and analyze your most consistent LOSING patterns:
 
 ---
 
-## 5. Performance Verdict
-
-Write ONE to TWO sentences summarizing the overall performance. Use these numbers:
-- Total PNL, Win Rate, Risk-Reward Ratio
-- Rating on a scale: 🔴 Critical | 🟡 Needs Work | 🟢 Solid
-
-Then a table:
-
-| Metric | Your Value | Profitable Trader |
-|---|---|---|
-| Win Rate | X% | >50% |
-| Risk/Reward | Xx | >2x |
-| Total PNL | X USDT | positive |
-
----
-
-## 6. When You Trade — Time Analysis
+## 5. When You Trade — Time Analysis
 
 ### Best Days (TOP 3)
 Table with the 3 most profitable weekdays:
@@ -165,7 +149,7 @@ Table with unprofitable weekdays:
 
 ---
 
-## 7. Which Assets Work
+## 6. Which Assets Work
 
 ### Your Winning Assets
 | Asset | Trades | PNL | Win Rate |
@@ -179,7 +163,7 @@ Table with unprofitable weekdays:
 
 ---
 
-## 8. Long vs Short
+## 7. Long vs Short
 
 | Direction | Trades | Win Rate | PNL |
 |---|---|---|---|
@@ -190,7 +174,7 @@ Table with unprofitable weekdays:
 
 ---
 
-## 9. Risk Management
+## 8. Risk Management
 
 | Metric | Value |
 |---|---|

@@ -497,7 +497,11 @@ def _collect_trade_screenshots(trades, token=None):
                 img_bytes, mime = screenshot_data, "image/jpeg"
 
             if img_bytes:
-                images.append((img_bytes, mime, t.get("name", "Trade")))
+                _label = (
+                    f"{t.get('name', 'Trade')} — {t.get('pair', '')} {t.get('direction', '')} "
+                    f"— Journal says: {t.get('profit_loss', 'Unknown')}"
+                )
+                images.append((img_bytes, mime, _label))
 
     return images
 
@@ -1029,7 +1033,7 @@ def build_ai_prompt(stats, trades):
 ---
 
 Analyze this data now. Follow EXACTLY the format from your system prompt.
-All 9 sections are mandatory. Skip NONE. Section 2 (Focus Plan) is the most important — it contains 5 concrete instructions the trader must change IMMEDIATELY.
+All 8 sections are mandatory. Skip NONE. Section 2 (Focus Plan) is the most important — it contains 5 concrete instructions the trader must change IMMEDIATELY.
 """
 
     return system_prompt, data_summary
@@ -1137,7 +1141,7 @@ def build_journal_ai_prompt(journal_trades):
 ---
 
 Analyze this journal data now. Follow EXACTLY the format from your system prompt.
-All 9 sections are mandatory. Skip NONE. Section 2 (Focus Plan) is the most important.
+All 8 sections are mandatory. Skip NONE. Section 2 (Focus Plan) is the most important.
 
 If trade screenshots are provided, analyze them as part of the trade context — look at chart patterns, entry/exit points, market structure, and any visible mistakes or good decisions. Reference specific screenshots in your analysis where relevant.
 """
@@ -1203,7 +1207,7 @@ def _collect_candle_screenshots(trades, token=None):
     return images
 
 
-def call_gemini_with_images(system_prompt, user_prompt, images):
+def call_gemini_with_images(system_prompt, user_prompt, images, max_tokens=8000):
     """Call Gemini 3 Flash with text + images using file upload. images = list of (bytes, mime_type, label)."""
     import google.generativeai as genai
     import tempfile
@@ -1253,7 +1257,7 @@ def call_gemini_with_images(system_prompt, user_prompt, images):
     try:
         response = model.generate_content(
             content_parts,
-            generation_config=genai.types.GenerationConfig(temperature=0.7, max_output_tokens=8000)
+            generation_config=genai.types.GenerationConfig(temperature=0.7, max_output_tokens=max_tokens)
         )
         return response.text
     finally:
@@ -1263,6 +1267,7 @@ def call_gemini_with_images(system_prompt, user_prompt, images):
                 genai.delete_file(file.name)
             except:
                 pass
+
 
 
 def call_gemini(system_prompt, user_prompt):
@@ -2264,7 +2269,7 @@ if st.session_state.page_nav == "journal":
             if _want_candles:
                 _candle_imgs = _collect_candle_screenshots(_jt_coach, _token_j)
                 if not _candle_imgs:
-                    _analysis += ("\n\n---\n\n## 🕯 Pre-Entry Candle Analysis\n\n"
+                    _analysis += ("\n\n---\n\n## 9. Pre-Entry Candle Analysis 🕯\n\n"
                                   "*No screenshots could be loaded for these trades, so the candle "
                                   "analysis was skipped.*\n")
                 else:
@@ -2274,7 +2279,7 @@ if st.session_state.page_nav == "journal":
                             if _is_claude:
                                 _candle_out = call_claude_with_images(_c_sys, _c_dat, _candle_imgs)
                             else:
-                                _candle_out = call_gemini_with_images(_c_sys, _c_dat, _candle_imgs)
+                                _candle_out = call_gemini_with_images(_c_sys, _c_dat, _candle_imgs, max_tokens=16000)
                         except Exception as _ce:
                             _candle_out = f"*Candle analysis failed: {_ce}*"
                     _analysis += "\n\n---\n\n" + _candle_out

@@ -106,7 +106,7 @@ Use EXACTLY this structure.
 
 ---
 
-## 🕯 Pre-Entry Candle Analysis
+## 9. Pre-Entry Candle Analysis 🕯
 
 ### Per-Trade Reading
 
